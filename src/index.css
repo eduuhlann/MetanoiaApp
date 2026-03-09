@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-app-gray: #D3D4D9;
+  --color-app-teal: #4B88A2;
+  --color-app-crimson: #BB0A21;
+  --color-app-dark: #252627;
+  --color-app-snow: #FFF9FB;
+}
+
+body {
+  background-color: var(--color-app-snow);
+  color: var(--color-app-dark);
+}
