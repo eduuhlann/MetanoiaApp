@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ArrowLeft,
@@ -19,6 +19,7 @@ import {
     Check,
     Clock,
     Upload,
+    Camera,
     Image as ImageIcon,
     MessageCircle,
     ArrowRight
@@ -197,29 +198,58 @@ const DevotionalsPage: React.FC = () => {
         }
     };
 
-    const handleSearchUsers = async (query: string) => {
-        setUserSearch(query);
-        if (query.length < 2) {
-            setSearchResults([]);
-            return;
-        }
-        setSearching(true);
+    const allUsersRef = useRef<ProfileSearchResult[]>([]);
+    const [allUsersLoaded, setAllUsersLoaded] = useState(false);
+
+    const loadAllUsers = async () => {
+        if (allUsersLoaded) return;
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, display_name, avatar_url')
-                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
                 .neq('id', user?.id)
-                .limit(10);
-
-            if (error) throw error;
-
-            const existingIds = invitees.map(i => i.id);
-            setSearchResults((data || []).filter((p: ProfileSearchResult) => !existingIds.includes(p.id)));
+                .order('display_name', { ascending: true });
+            if (!error && data) {
+                allUsersRef.current = data;
+                setAllUsersLoaded(true);
+            }
         } catch (err) {
-            console.error('Error searching users:', err);
-        } finally {
-            setSearching(false);
+            console.error('Error loading users:', err);
+        }
+    };
+
+    const fuzzyMatch = (text: string, query: string): boolean => {
+        const q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const t = (text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (t.includes(q)) return true;
+        const words = q.split(/\s+/).filter(Boolean);
+        return words.length > 0 && words.every(w => t.includes(w));
+    };
+
+    const handleSearchUsers = async (query: string) => {
+        setUserSearch(query);
+        if (!allUsersLoaded) await loadAllUsers();
+
+        const existingIds = invitees.map(i => i.id);
+
+        if (!query.trim()) {
+            setSearchResults(allUsersRef.current.filter(p => !existingIds.includes(p.id)).slice(0, 20));
+            return;
+        }
+
+        const filtered = allUsersRef.current.filter(p => {
+            if (existingIds.includes(p.id)) return false;
+            return fuzzyMatch(p.username || '', query)
+                || fuzzyMatch(p.display_name || '', query);
+        });
+        setSearchResults(filtered.slice(0, 20));
+    };
+
+    const handleFocusSearch = async () => {
+        if (!allUsersLoaded) await loadAllUsers();
+        if (!userSearch.trim()) {
+            const existingIds = invitees.map(i => i.id);
+            setSearchResults(allUsersRef.current.filter(p => !existingIds.includes(p.id)).slice(0, 20));
         }
     };
 
@@ -724,30 +754,35 @@ const DevotionalsPage: React.FC = () => {
                                     <div className="p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <Users size={18} style={{ color: '#4B88A2' }} />
-                                            <h3 className="text-lg font-bold tracking-tight">Criar Grupo</h3>
+                                            <div>
+                                                <h3 className="text-lg font-bold tracking-tight">Criar Grupo</h3>
+                                                <p className="text-xs mt-1" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>
+                                                    Dê um nome e uma foto pro seu grupo de devocional
+                                                </p>
+                                            </div>
                                         </div>
 
                                         {/* Group photo */}
                                         <div className="flex justify-center">
                                             <label className="relative cursor-pointer group">
                                                 <div
-                                                    className="w-24 h-24 rounded-full flex items-center justify-center transition-all overflow-hidden"
+                                                    className="w-28 h-28 rounded-full flex items-center justify-center transition-all overflow-hidden"
                                                     style={{
-                                                        background: groupPhoto ? 'transparent' : 'rgba(75, 136, 162, 0.1)',
-                                                        border: '2px dashed rgba(75, 136, 162, 0.3)',
+                                                        background: groupPhoto ? 'transparent' : 'rgba(75, 136, 162, 0.08)',
+                                                        border: groupPhoto ? '3px solid rgba(75, 136, 162, 0.4)' : '2px dashed rgba(75, 136, 162, 0.2)',
                                                     }}
                                                 >
                                                     {groupPhoto ? (
                                                         <img src={groupPhoto} alt="" className="w-full h-full object-cover" />
                                                     ) : (
                                                         <div className="text-center">
-                                                            <ImageIcon size={24} className="mx-auto mb-1" style={{ color: 'rgba(75, 136, 162, 0.4)' }} />
-                                                            <span className="text-[9px] font-bold" style={{ color: 'rgba(75, 136, 162, 0.4)' }}>Foto</span>
+                                                            <Camera size={28} className="mx-auto mb-2" style={{ color: 'rgba(75, 136, 162, 0.3)' }} />
+                                                            <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'rgba(75, 136, 162, 0.3)' }}>Adicionar Foto</span>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: '#4B88A2' }}>
-                                                    <Upload size={12} />
+                                                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg" style={{ background: '#4B88A2' }}>
+                                                    <Upload size={14} />
                                                 </div>
                                                 <input type="file" className="hidden" accept="image/*" onChange={handleGroupPhotoUpload} />
                                             </label>
@@ -792,7 +827,12 @@ const DevotionalsPage: React.FC = () => {
                                     <div className="p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <Users size={18} style={{ color: '#4B88A2' }} />
-                                            <h3 className="text-lg font-bold tracking-tight">Convidar Participantes</h3>
+                                            <div>
+                                                <h3 className="text-lg font-bold tracking-tight">Convidar Participantes</h3>
+                                                <p className="text-xs mt-1" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>
+                                                    Digite o nome de quem você quer convidar
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <div className="relative">
@@ -801,25 +841,25 @@ const DevotionalsPage: React.FC = () => {
                                                 type="text"
                                                 value={userSearch}
                                                 onChange={e => handleSearchUsers(e.target.value)}
-                                                placeholder="Buscar por @username ou nome..."
+                                                onFocus={handleFocusSearch}
+                                                placeholder="Digite o nome de qualquer pessoa..."
                                                 className="w-full rounded-2xl py-4 pl-11 pr-5 focus:outline-none transition-all text-white placeholder:text-[rgba(211,212,217,0.3)] font-normal text-sm"
                                                 style={inputStyle}
                                             />
-                                            {searching && (
-                                                <Loader2 size={16} className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin" style={{ color: '#4B88A2' }} />
-                                            )}
                                         </div>
 
+                                        {/* Search results */}
                                         {searchResults.length > 0 && (
-                                            <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(75, 136, 162, 0.1)' }}>
+                                            <div className="rounded-2xl overflow-hidden max-h-72 overflow-y-auto" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(75, 136, 162, 0.1)' }}>
                                                 {searchResults.map(profile => (
                                                     <div
                                                         key={profile.id}
-                                                        className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
+                                                        className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors cursor-pointer"
                                                         style={{ borderBottom: '1px solid rgba(75, 136, 162, 0.05)' }}
+                                                        onClick={() => handleAddInvitee(profile)}
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'rgba(75, 136, 162, 0.15)' }}>
+                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(75, 136, 162, 0.15)' }}>
                                                                 {profile.avatar_url ? (
                                                                     <img src={profile.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                                                                 ) : (
@@ -829,55 +869,47 @@ const DevotionalsPage: React.FC = () => {
                                                                 )}
                                                             </div>
                                                             <div>
-                                                                <p className="text-sm font-bold" style={{ color: '#FFF9FB' }}>{profile.display_name || profile.username}</p>
+                                                                <p className="text-sm font-bold" style={{ color: '#FFF9FB' }}>{profile.display_name || 'Sem nome'}</p>
                                                                 {profile.username && <p className="text-xs" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>@{profile.username}</p>}
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => handleAddInvitee(profile)}
-                                                            className="p-2 rounded-xl transition-all hover:scale-110"
-                                                            style={{ background: 'rgba(75, 136, 162, 0.15)' }}
-                                                        >
-                                                            <Plus size={16} style={{ color: '#4B88A2' }} />
-                                                        </button>
+                                                        <Plus size={18} style={{ color: '#4B88A2' }} />
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
 
+                                        {/* Selected invitees */}
                                         {invitees.length > 0 && (
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>
-                                                    Convites ({invitees.length})
+                                                    Selecionados ({invitees.length})
                                                 </span>
-                                                <div className="space-y-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     {invitees.map(invitee => (
                                                         <div
                                                             key={invitee.id}
-                                                            className="flex items-center justify-between px-4 py-3 rounded-xl"
-                                                            style={{ background: 'rgba(75, 136, 162, 0.1)', border: '1px solid rgba(75, 136, 162, 0.15)' }}
+                                                            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full"
+                                                            style={{ background: 'rgba(75, 136, 162, 0.15)', border: '1px solid rgba(75, 136, 162, 0.2)' }}
                                                         >
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(75, 136, 162, 0.2)' }}>
-                                                                    {invitee.avatar_url ? (
-                                                                        <img src={invitee.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
-                                                                    ) : (
-                                                                        <span className="text-xs font-bold" style={{ color: '#4B88A2' }}>
-                                                                            {(invitee.display_name || invitee.username || '?').charAt(0).toUpperCase()}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-sm font-bold" style={{ color: '#FFF9FB' }}>{invitee.display_name || invitee.username}</p>
-                                                                    {invitee.username && <p className="text-xs" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>@{invitee.username}</p>}
-                                                                </div>
+                                                            <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(75, 136, 162, 0.3)' }}>
+                                                                {invitee.avatar_url ? (
+                                                                    <img src={invitee.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
+                                                                ) : (
+                                                                    <span className="text-[9px] font-bold" style={{ color: '#4B88A2' }}>
+                                                                        {(invitee.display_name || invitee.username || '?').charAt(0).toUpperCase()}
+                                                                    </span>
+                                                                )}
                                                             </div>
+                                                            <span className="text-xs font-bold" style={{ color: 'rgba(211, 212, 217, 0.8)' }}>
+                                                                {invitee.display_name || invitee.username || '???'}
+                                                            </span>
                                                             <button
                                                                 onClick={() => handleRemoveInvitee(invitee.id)}
-                                                                className="p-2 rounded-xl transition-all hover:bg-red-500/10"
+                                                                className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
                                                                 style={{ color: 'rgba(187, 10, 33, 0.6)' }}
                                                             >
-                                                                <X size={14} />
+                                                                <X size={12} />
                                                             </button>
                                                         </div>
                                                     ))}
@@ -899,7 +931,7 @@ const DevotionalsPage: React.FC = () => {
                                             className="flex-1 py-4 rounded-2xl font-black text-xs tracking-[0.3em] uppercase transition-all text-white flex items-center justify-center gap-2"
                                             style={{ background: '#BB0A21' }}
                                         >
-                                            Criar Devocional <Check size={14} />
+                                            {invitees.length > 0 ? `Criar (${invitees.length})` : 'Pular'} <Check size={14} />
                                         </button>
                                     </div>
                                 </div>
