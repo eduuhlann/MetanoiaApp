@@ -78,7 +78,7 @@ const ProfilePage: React.FC = () => {
         reader.onload = () => {
             setImageToCrop(reader.result as string);
             setCropType(type);
-            setCropAspect(type === 'banner' ? 2048 / 338 : 1);
+            setCropAspect(type === 'banner' ? 2048 / 1152 : 1);
             setCropModalOpen(true);
         };
         reader.readAsDataURL(file);

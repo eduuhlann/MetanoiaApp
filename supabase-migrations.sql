@@ -12,6 +12,9 @@ ALTER TABLE profiles
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
 
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS banner_url TEXT;
+
 -- 2. Criar tabela events
 -- ============================================
 CREATE TABLE IF NOT EXISTS events (
@@ -217,3 +220,45 @@ CREATE POLICY "Users can update own devotional photos"
 CREATE POLICY "Users can delete own devotional photos"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'devotional-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- 12. Storage bucket para banners (2048x1152)
+-- ============================================
+INSERT INTO storage.buckets (id, name, public) VALUES ('banners', 'banners', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Anyone can view banners"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'banners');
+
+CREATE POLICY "Authenticated users can upload banners"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'banners' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update own banners"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'banners' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can delete own banners"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'banners' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- 13. Storage bucket para avatares
+-- ============================================
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Anyone can view avatars"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+
+CREATE POLICY "Authenticated users can upload avatars"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update own avatars"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can delete own avatars"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);

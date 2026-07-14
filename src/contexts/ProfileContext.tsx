@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -27,10 +27,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const { user } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(false);
+    const prevUserId = useRef<string | null>(null);
 
     const fetchProfile = useCallback(async () => {
         if (!user) {
             setProfile(null);
+            prevUserId.current = null;
             return;
         }
         setLoading(true);
@@ -54,8 +56,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [user]);
 
     useEffect(() => {
+        if (user?.id === prevUserId.current) return;
+        prevUserId.current = user?.id ?? null;
         fetchProfile();
-    }, [fetchProfile]);
+    }, [fetchProfile, user?.id]);
 
     const updateProfile = async (updates: Partial<Omit<UserProfile, 'id'>>) => {
         if (!user) return;

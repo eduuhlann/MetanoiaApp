@@ -83,7 +83,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
             </div>
 
             <div className="relative flex-1 bg-[#0f0f0f] flex items-center justify-center p-4 md:p-12">
-              <div className="relative w-full max-w-5xl aspect-[2048/338] border border-white/5 shadow-2xl overflow-hidden bg-black/40">
+              <div className="relative w-full max-w-5xl border border-white/5 shadow-2xl overflow-hidden bg-black/40" style={{ aspectRatio: `${aspect}` }}>
                 <Cropper
                   image={image}
                   crop={crop}

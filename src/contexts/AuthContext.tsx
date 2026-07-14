@@ -34,7 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'TOKEN_REFRESHED') return;
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
