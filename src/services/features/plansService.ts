@@ -1,88 +1,87 @@
+export interface PlanDayContent {
+    day: number;
+    title: string;
+    verse: string;
+    content: string;
+}
+
 export interface Plan {
     id: string;
     title: string;
     description: string;
-    duration: string;
-    chapters: number;
-    icon: string;
+    durationDays: number;
+    category: 'standard' | 'ai' | 'thematic';
+    content?: PlanDayContent[];
 }
 
 export interface UserPlan {
     planId: string;
-    startedAt: string;
-    progress: number;
-    completedChapters: number[];
+    startDate: number;
+    completedDays: number[];
 }
 
-const PLANS_KEY = '@metanoia_plans';
-const CUSTOM_PLANS_KEY = '@metanoia_custom_plans';
+const ACTIVE_PLANS_KEY = 'metanoia_active_plans';
+const CUSTOM_PLANS_KEY = 'metanoia_custom_plans';
 
 export const STATIC_PLANS: Plan[] = [
     {
         id: 'genesis',
         title: 'Gênesis',
-        description: 'Explore os primérdios da criação, a história dos patriarcas e os fundamentos da fé.',
-        duration: '30 dias',
-        chapters: 50,
-        icon: '📖'
+        description: 'Explore os primórdios da criação, a história dos patriarcas e os fundamentos da fé.',
+        durationDays: 30,
+        category: 'standard'
     },
     {
         id: 'salmos',
-        title: 'Salmos de Oração',
-        description: 'Uma seleção de salmos para fortalecer sua vida de oração e adoração.',
-        duration: '21 dias',
-        chapters: 21,
-        icon: '🙏'
+        title: '30 Dias com Salmos',
+        description: 'Encontre conforto e louvor através dos salmos mais poderosos da Escritura.',
+        durationDays: 30,
+        category: 'thematic'
     },
     {
         id: 'proverbios',
         title: 'Provérbios da Sabedoria',
         description: 'Sabedoria prática para o dia a dia, um capítulo por dia.',
-        duration: '31 dias',
-        chapters: 31,
-        icon: '💡'
+        durationDays: 31,
+        category: 'standard'
     },
     {
         id: 'joao',
         title: 'Evangelho de João',
         description: 'Conheça Jesus através do olhar do discípulo amado.',
-        duration: '21 dias',
-        chapters: 21,
-        icon: '✝️'
+        durationDays: 21,
+        category: 'standard'
     },
     {
         id: 'romanos',
         title: 'Carta aos Romanos',
         description: 'Entenda a graça de Deus e os fundamentos da teologia cristã.',
-        duration: '16 dias',
-        chapters: 16,
-        icon: '📜'
+        durationDays: 16,
+        category: 'standard'
     }
 ];
 
 class PlansService {
     getActivePlans(): UserPlan[] {
-        const saved = localStorage.getItem(PLANS_KEY);
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch {
-                return [];
-            }
+        try {
+            const data = localStorage.getItem(ACTIVE_PLANS_KEY);
+            if (!data) return [];
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
         }
-        return [];
     }
 
     getCustomPlans(): Plan[] {
-        const saved = localStorage.getItem(CUSTOM_PLANS_KEY);
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch {
-                return [];
-            }
+        try {
+            const data = localStorage.getItem(CUSTOM_PLANS_KEY);
+            if (!data) return [];
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
         }
-        return [];
     }
 
     joinPlan(planId: string) {
@@ -90,46 +89,50 @@ class PlansService {
         if (active.some(p => p.planId === planId)) return;
         active.push({
             planId,
-            startedAt: new Date().toISOString(),
-            progress: 0,
-            completedChapters: []
+            startDate: Date.now(),
+            completedDays: []
         });
-        localStorage.setItem(PLANS_KEY, JSON.stringify(active));
+        localStorage.setItem(ACTIVE_PLANS_KEY, JSON.stringify(active));
     }
 
     leavePlan(planId: string) {
         const active = this.getActivePlans().filter(p => p.planId !== planId);
-        localStorage.setItem(PLANS_KEY, JSON.stringify(active));
+        localStorage.setItem(ACTIVE_PLANS_KEY, JSON.stringify(active));
     }
 
-    completeChapter(planId: string, chapter: number) {
+    markDayComplete(planId: string, day: number) {
         const active = this.getActivePlans();
         const plan = active.find(p => p.planId === planId);
-        if (!plan) return;
-        if (!plan.completedChapters.includes(chapter)) {
-            plan.completedChapters.push(chapter);
-            const allPlan = [...STATIC_PLANS, ...this.getCustomPlans()].find(p => p.id === planId);
-            if (allPlan) {
-                plan.progress = Math.round((plan.completedChapters.length / allPlan.chapters) * 100);
-            }
+        if (plan && !plan.completedDays.includes(day)) {
+            plan.completedDays.push(day);
+            localStorage.setItem(ACTIVE_PLANS_KEY, JSON.stringify(active));
         }
-        localStorage.setItem(PLANS_KEY, JSON.stringify(active));
     }
 
-    addCustomPlan(plan: Omit<Plan, 'id'>) {
-        const custom = this.getCustomPlans();
-        const newPlan: Plan = {
-            ...plan,
-            id: 'custom_' + Date.now()
-        };
-        custom.push(newPlan);
-        localStorage.setItem(CUSTOM_PLANS_KEY, JSON.stringify(custom));
-        return newPlan;
+    getPlanProgress(planId: string): number {
+        const active = this.getActivePlans();
+        const plan = active.find(p => p.planId === planId);
+        if (!plan) return 0;
+
+        let targetPlan = STATIC_PLANS.find(p => p.id === planId);
+        if (!targetPlan) {
+            targetPlan = this.getCustomPlans().find(p => p.id === planId);
+        }
+
+        if (!targetPlan) return 0;
+
+        return Math.round((plan.completedDays.length / targetPlan.durationDays) * 100);
+    }
+
+    saveCustomPlan(plan: Plan) {
+        const customPlans = this.getCustomPlans();
+        customPlans.push(plan);
+        localStorage.setItem(CUSTOM_PLANS_KEY, JSON.stringify(customPlans));
     }
 
     deleteCustomPlan(planId: string) {
-        const custom = this.getCustomPlans().filter(p => p.id !== planId);
-        localStorage.setItem(CUSTOM_PLANS_KEY, JSON.stringify(custom));
+        const customPlans = this.getCustomPlans().filter(p => p.id !== planId);
+        localStorage.setItem(CUSTOM_PLANS_KEY, JSON.stringify(customPlans));
         this.leavePlan(planId);
     }
 }

@@ -30,7 +30,9 @@ import {
     Palette as PaletteIcon,
     Clock,
     MapPin,
-    Users
+    Users,
+    Sparkles,
+    Compass
 } from 'lucide-react';
 import CustomizationModal from '../components/CustomizationModal';
 import { NotificationBell } from '../components/NotificationBell';
@@ -298,7 +300,8 @@ export default function Dashboard() {
 
     const menuItems = useMemo(() => {
         const items = [
-            { id: 'devotionals', icon: BookOpen, label: 'Devocionais', description: 'Devocionais diários', path: '/devotionals' },
+            { id: 'plans', icon: Compass, label: 'Planos', description: 'Jornadas de estudo bíblico', path: '/plans' },
+            { id: 'discipleship', icon: Users, label: 'Discipulado', description: 'Conexões e grupos', path: '/discipleship' },
             { id: 'events', icon: Calendar, label: 'Eventos', description: 'Próximos encontros', path: '/events' },
             { id: 'customize', icon: PaletteIcon, label: 'Personalizar', description: 'Mude as cores e fundos', action: () => setIsCustomizationOpen(true) },
         ];
@@ -340,7 +343,7 @@ export default function Dashboard() {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white p-4 md:p-12 overflow-x-hidden selection:bg-[#4B88A2]/30 selection:text-white relative" style={{ background: '#252627' }}>
+        <div className="min-h-screen text-white p-4 md:p-12 overflow-x-hidden selection:bg-[#4B88A2]/30 selection:text-white relative" style={{ background: preferences.wallpaper === 'custom' ? 'transparent' : '#252627' }}>
             <div className="max-w-full relative z-10">
                     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 md:mb-16">
                         <div className="flex items-center gap-3 md:gap-6">

@@ -262,3 +262,245 @@ CREATE POLICY "Users can update own avatars"
 CREATE POLICY "Users can delete own avatars"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ============================================
+-- 14. Discipleship Tables
+-- ============================================
+
+-- 14.1 discipleship_connections
+CREATE TABLE IF NOT EXISTS discipleship_connections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  leader_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  disciple_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('active', 'inactive', 'pending')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(leader_id, disciple_id)
+);
+
+ALTER TABLE discipleship_connections ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their connections"
+  ON discipleship_connections FOR SELECT
+  USING (auth.uid() = leader_id OR auth.uid() = disciple_id);
+
+CREATE POLICY "Users can create connections"
+  ON discipleship_connections FOR INSERT
+  WITH CHECK (auth.uid() = leader_id OR auth.uid() = disciple_id);
+
+CREATE POLICY "Users can update their connections"
+  ON discipleship_connections FOR UPDATE
+  USING (auth.uid() = leader_id OR auth.uid() = disciple_id);
+
+-- 14.2 discipleship_invites
+CREATE TABLE IF NOT EXISTS discipleship_invites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  leader_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  code TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE discipleship_invites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read invite codes"
+  ON discipleship_invites FOR SELECT
+  USING (true);
+
+CREATE POLICY "Leaders can manage their invites"
+  ON discipleship_invites FOR INSERT
+  WITH CHECK (auth.uid() = leader_id);
+
+CREATE POLICY "Leaders can update their invites"
+  ON discipleship_invites FOR UPDATE
+  USING (auth.uid() = leader_id);
+
+CREATE POLICY "Leaders can delete their invites"
+  ON discipleship_invites FOR DELETE
+  USING (auth.uid() = leader_id);
+
+-- 14.3 discipleship_tasks
+CREATE TABLE IF NOT EXISTS discipleship_tasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  leader_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  disciple_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  type TEXT DEFAULT 'other' CHECK (type IN ('chapter', 'plan', 'reading', 'other')),
+  target_id TEXT,
+  is_completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE discipleship_tasks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their tasks"
+  ON discipleship_tasks FOR SELECT
+  USING (auth.uid() = leader_id OR auth.uid() = disciple_id);
+
+CREATE POLICY "Leaders can create tasks"
+  ON discipleship_tasks FOR INSERT
+  WITH CHECK (auth.uid() = leader_id);
+
+CREATE POLICY "Users can update their tasks"
+  ON discipleship_tasks FOR UPDATE
+  USING (auth.uid() = leader_id OR auth.uid() = disciple_id);
+
+-- 14.4 discipleship_notes
+CREATE TABLE IF NOT EXISTS discipleship_notes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  leader_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  disciple_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  group_id UUID,
+  file_url TEXT,
+  file_name TEXT,
+  file_type TEXT,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE discipleship_notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view notes they are involved in"
+  ON discipleship_notes FOR SELECT
+  USING (
+    auth.uid() = leader_id
+    OR auth.uid() = disciple_id
+    OR auth.uid() = author_id
+  );
+
+CREATE POLICY "Users can insert notes"
+  ON discipleship_notes FOR INSERT
+  WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Authors can update their notes"
+  ON discipleship_notes FOR UPDATE
+  USING (auth.uid() = author_id);
+
+CREATE POLICY "Authors can delete their notes"
+  ON discipleship_notes FOR DELETE
+  USING (auth.uid() = author_id);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE discipleship_notes;
+
+-- 14.5 discipleship_groups
+CREATE TABLE IF NOT EXISTS discipleship_groups (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  leader_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE discipleship_groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view groups"
+  ON discipleship_groups FOR SELECT
+  USING (true);
+
+CREATE POLICY "Authenticated users can create groups"
+  ON discipleship_groups FOR INSERT
+  WITH CHECK (auth.uid() = leader_id);
+
+CREATE POLICY "Leaders can update their groups"
+  ON discipleship_groups FOR UPDATE
+  USING (auth.uid() = leader_id);
+
+CREATE POLICY "Leaders can delete their groups"
+  ON discipleship_groups FOR DELETE
+  USING (auth.uid() = leader_id);
+
+-- 14.6 discipleship_group_members
+CREATE TABLE IF NOT EXISTS discipleship_group_members (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  group_id UUID REFERENCES discipleship_groups(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('active', 'inactive', 'pending')),
+  role TEXT DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(group_id, user_id)
+);
+
+ALTER TABLE discipleship_group_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view group members"
+  ON discipleship_group_members FOR SELECT
+  USING (true);
+
+CREATE POLICY "Authenticated users can join groups"
+  ON discipleship_group_members FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Members can update their status"
+  ON discipleship_group_members FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Members can leave groups"
+  ON discipleship_group_members FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- 14.7 chat_clear_history
+CREATE TABLE IF NOT EXISTS chat_clear_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  group_id UUID,
+  partner_id UUID,
+  cleared_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE chat_clear_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their clear history"
+  ON chat_clear_history FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert clear history"
+  ON chat_clear_history FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their clear history"
+  ON chat_clear_history FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- 14.8 reading_progress
+CREATE TABLE IF NOT EXISTS reading_progress (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  book_abbrev TEXT NOT NULL,
+  chapter_number INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, book_abbrev, chapter_number)
+);
+
+ALTER TABLE reading_progress ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own reading progress"
+  ON reading_progress FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own reading progress"
+  ON reading_progress FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own reading progress"
+  ON reading_progress FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- 14.9 Storage bucket for discipleship files
+INSERT INTO storage.buckets (id, name, public) VALUES ('discipleship_files', 'discipleship_files', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Anyone can view discipleship files"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'discipleship_files');
+
+CREATE POLICY "Authenticated users can upload discipleship files"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'discipleship_files' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update own discipleship files"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'discipleship_files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can delete own discipleship files"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'discipleship_files' AND auth.uid()::text = (storage.foldername(name))[1]);

@@ -127,3 +127,36 @@ Se for de múltiplos dias, gere ${durationDays} objetos no daily_readings, um pa
         return null;
     }
 };
+
+export const callGroqChat = async (
+    messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
+    model: string = 'llama-3.3-70b-versatile'
+): Promise<string> => {
+    const url = 'https://api.groq.com/openai/v1/chat/completions';
+
+    if (!GROQ_API_KEY) {
+        throw new Error('GROQ API Key is missing.');
+    }
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.7,
+            max_tokens: 4096,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `Erro na chamada da API Groq (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+};

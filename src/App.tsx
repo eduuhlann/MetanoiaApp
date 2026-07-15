@@ -12,11 +12,15 @@ import AuthCallback from './pages/AuthCallback';
 import OnboardingFlow from './pages/OnboardingFlow';
 import Dashboard from './pages/Dashboard';
 import PlansPage from './pages/PlansPage';
+import PlanDetails from './pages/PlanDetails';
+import AiPlanGenerator from './pages/AiPlanGenerator';
 import PrayerPage from './pages/PrayerPage';
 import EventsPage from './pages/EventsPage';
 import DevotionalsPage from './pages/DevotionalsPage';
+import Discipleship from './pages/Discipleship';
 import Settings from './pages/Settings';
 import ProfilePage from './pages/ProfilePage';
+import { DiscipleshipListener } from './components/DiscipleshipListener';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -43,6 +47,16 @@ function AnimatedRoutes() {
             <PlansPage />
           </ProtectedRoute>
         } />
+        <Route path="/plans/ai-generator" element={
+          <ProtectedRoute>
+            <AiPlanGenerator />
+          </ProtectedRoute>
+        } />
+        <Route path="/plans/:id" element={
+          <ProtectedRoute>
+            <PlanDetails />
+          </ProtectedRoute>
+        } />
         <Route path="/prayer" element={
           <ProtectedRoute>
             <PrayerPage />
@@ -56,6 +70,11 @@ function AnimatedRoutes() {
         <Route path="/devotionals" element={
           <ProtectedRoute>
             <DevotionalsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/discipleship" element={
+          <ProtectedRoute>
+            <Discipleship />
           </ProtectedRoute>
         } />
         <Route path="/settings" element={
@@ -80,6 +99,7 @@ export default function App() {
         <ProfileProvider>
           <PreferencesProvider>
             <ParticleBackground />
+            <DiscipleshipListener />
             <AnimatedRoutes />
           </PreferencesProvider>
         </ProfileProvider>
