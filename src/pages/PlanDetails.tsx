@@ -77,7 +77,7 @@ export default function PlanDetails() {
                     </p>
                 </motion.div>
 
-                <div className="p-8 rounded-[2.5rem] mb-12" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.1)' }}>
+                <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] mb-12" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.1)' }}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold tracking-[0.3em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Progresso da Jornada</h3>
                         <span className="text-2xl font-black italic" style={{ color: '#4B88A2' }}>{progress}%</span>

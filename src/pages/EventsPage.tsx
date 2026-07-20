@@ -167,7 +167,7 @@ const EventsPage: React.FC = () => {
                             exit={{ opacity: 0, height: 0 }}
                             className="mb-12 overflow-hidden"
                         >
-                            <div className="p-5 md:p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                            <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                 <h3 className="text-lg font-bold tracking-tight">Novo Evento</h3>
                                 
                                 <input

@@ -173,7 +173,7 @@ function SortableCard({ id, item, navigate, glassStyle }: { id: string, item: an
                         {item.description}
                     </p>
                     <div
-                        className="mt-5 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.2em] text-white transition-colors uppercase"
+                        className="mt-5 flex items-center gap-1.5 text-[10px] sm:text-[9px] font-bold tracking-[0.2em] text-white transition-colors uppercase"
                         style={{ transform: "translateZ(20px)" }}
                     >
                         {item.action ? 'Abrir' : 'Acessar'} <ChevronRight size={10} />
@@ -345,7 +345,7 @@ export default function Dashboard() {
                     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 md:mb-16">
                         <div className="flex items-center gap-3 md:gap-6">
                             <div className="space-y-1">
-                                                <span className="text-xs font-bold tracking-[0.5em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Bem-vindo</span>
+                                        <span className="text-[11px] sm:text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Bem-vindo</span>
                                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter">
                                     {displayName}
                                 </h1>
@@ -459,14 +459,14 @@ export default function Dashboard() {
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                                                                <span className="text-[10px] font-black tracking-widest uppercase" style={{ color: 'rgba(75, 136, 162, 0.6)' }}>{new Date(event.event_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                                            <span className="text-[9px] font-black tracking-widest uppercase" style={{ color: 'rgba(75, 136, 162, 0.6)' }}>{new Date(event.event_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' })}</span>
                                             <span className="text-lg font-black" style={{ color: '#FFF9FB' }}>{new Date(event.event_date + 'T00:00:00').getDate()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h4 className="text-sm font-bold tracking-tight truncate" style={{ color: '#FFF9FB' }}>{event.title}</h4>
                                             <div className="flex flex-wrap items-center gap-3 text-[11px] mt-1" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>
-                                                                {event.event_time && <span className="flex items-center gap-1"><Clock size={12} /> {event.event_time}</span>}
-                                                                {event.location && <span className="flex items-center gap-1"><MapPin size={12} /> {event.location}</span>}
+                                                 {event.event_time && <span className="flex items-center gap-1"><Clock size={12} /> {event.event_time}</span>}
+                                                 {event.location && <span className="flex items-center gap-1"><MapPin size={12} /> {event.location}</span>}
                                             </div>
                                         </div>
                                         <ChevronRight size={16} className="text-white/20 group-hover:text-white/50 transition-colors shrink-0" />

@@ -90,7 +90,7 @@ const PrayerPage: React.FC = () => {
                             <span className="text-[10px] font-black tracking-[0.4em] text-white/20 uppercase mb-4">Tempo de Oração</span>
                             <h1 className="text-4xl sm:text-5xl font-black italic tracking-tighter mb-12">Quanto tempo?</h1>
 
-                            <div className="grid grid-cols-4 gap-3 w-full mb-8">
+                            <div className="grid grid-cols-4 gap-2 sm:gap-3 w-full mb-8">
                                 {PRESETS.map(min => (
                                     <button
                                         key={min}

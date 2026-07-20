@@ -377,7 +377,7 @@ export default function AiPlanGenerator() {
                             >
                                 Plano {config.duration} Dias • {config.period}
                             </span>
-                            <h2 className="text-4xl font-bold tracking-tight mb-4">{generatedTitle}</h2>
+                            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">{generatedTitle}</h2>
                             <p className="font-serif italic text-lg max-w-md mx-auto" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>{generatedDescription}</p>
                         </div>
                         <button
@@ -436,7 +436,7 @@ export default function AiPlanGenerator() {
                                 animate={{ opacity: 1, y: 0 }}
                                 className="space-y-4"
                             >
-                                <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+                                <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
                                     {currentStepInfo.title}
                                 </h1>
                                 <p className="text-lg italic opacity-80" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>

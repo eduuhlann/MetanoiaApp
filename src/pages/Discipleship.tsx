@@ -936,8 +936,8 @@ const Discipleship: React.FC = () => {
                                             </div>
                                             {isPending ? (
                                                 <div className="flex items-center gap-2 mt-2">
-                                                     <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, true); }} style={{ background: '#4B88A2', color: '#fff' }} className="px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Aceitar</button>
-                                                     <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, false); }} className="px-4 py-2.5 bg-white/10 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Recusar</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, true); }} style={{ background: '#4B88A2', color: '#fff' }} className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Aceitar</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, false); }} className="px-4 py-2 bg-white/10 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Recusar</button>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center justify-between gap-2 mt-1">
@@ -1011,7 +1011,7 @@ const Discipleship: React.FC = () => {
                                                     ) : (
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4B88A2' }} />
-                                                             <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#4B88A2' }}>Disponível</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#4B88A2' }}>Disponível</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1187,8 +1187,8 @@ const Discipleship: React.FC = () => {
                                                                             autoFocus
                                                                         />
                                                                         <div className="flex justify-end gap-2">
-                                                                            <button onClick={() => setEditingNoteId(null)} className="px-3 py-1 bg-black/5 text-black/40 rounded-lg text-[9px] font-black uppercase tracking-widest">Cancelar</button>
-                                                                            <button onClick={() => handleEditNote(n.id)} className="px-3 py-1 bg-black text-white rounded-lg text-[9px] font-black uppercase tracking-widest">Salvar</button>
+                                                                            <button onClick={() => setEditingNoteId(null)} className="px-3 py-1.5 bg-black/5 text-black/40 rounded-lg text-[10px] font-black uppercase tracking-widest">Cancelar</button>
+                                                                            <button onClick={() => handleEditNote(n.id)} className="px-3 py-1.5 bg-black text-white rounded-lg text-[10px] font-black uppercase tracking-widest">Salvar</button>
                                                                         </div>
                                                                     </div>
                                                                 ) : (
@@ -1247,7 +1247,7 @@ const Discipleship: React.FC = () => {
                                                                     </>
                                                                 )}
                                                             </div>
-                                                             <span className="text-[10px] text-white/20 font-bold uppercase px-1">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            <span className="text-[10px] text-white/20 font-bold uppercase px-1">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                         </div>
                                                     </motion.div>
                                                 );

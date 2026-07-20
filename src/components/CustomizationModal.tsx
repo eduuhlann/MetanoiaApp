@@ -114,7 +114,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                     className="absolute top-2 right-2 p-2.5 rounded-full bg-black/60 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
                                                     title="Remover da galeria"
                                                 >
-                                                    <Trash2 size={14} />
+                                                    <Trash2 size={12} />
                                                 </button>
                                             </div>
                                         ))}

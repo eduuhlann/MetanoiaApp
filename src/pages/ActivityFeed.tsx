@@ -61,7 +61,7 @@ const MembersPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#252627] text-white">
-                <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+            <div className="max-w-2xl mx-auto px-6 py-6">
                 <div className="flex items-center gap-4 mb-6">
                     <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-white/5 rounded-full transition-colors">
                         <ArrowLeft className="w-5 h-5" />
@@ -101,7 +101,7 @@ const MembersPage: React.FC = () => {
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.03 }}
-                                className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 sm:p-5 hover:bg-white/[0.06] transition-colors"
+                                className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 hover:bg-white/[0.06] transition-colors"
                             >
                                 <div className="flex items-center gap-3 sm:gap-4">
                                     <button
@@ -112,18 +112,18 @@ const MembersPage: React.FC = () => {
                                             <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center">
-                                                <User className="w-7 h-7 text-white/30" />
+                                                <User className="w-5 h-5 sm:w-7 sm:h-7 text-white/30" />
                                             </div>
                                         )}
                                     </button>
                                     <div className="flex-1 min-w-0">
                                         <button
                                             onClick={() => navigate(`/user/${member.id}`)}
-                                            className="font-bold text-base hover:underline truncate"
+                                            className="font-bold text-sm sm:text-base hover:underline truncate"
                                         >
                                             {member.display_name || member.username || 'Alguém'}
                                         </button>
-                                        <p className="text-sm text-white/30 truncate">
+                                        <p className="text-xs sm:text-sm text-white/30 truncate">
                                             @{member.username || 'username'}
                                         </p>
                                     </div>
@@ -133,7 +133,7 @@ const MembersPage: React.FC = () => {
                                             className="p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-[#4B88A2]/20 hover:border-[#4B88A2]/30 transition-all group"
                                             title="Criar devocional"
                                         >
-                                            <BookOpen className="w-5 h-5 text-white/40 group-hover:text-[#4B88A2] transition-colors" />
+                                            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white/40 group-hover:text-[#4B88A2] transition-colors" />
                                         </button>
                                         <button
                                             onClick={() => handleStartChat(member.id)}
@@ -142,9 +142,9 @@ const MembersPage: React.FC = () => {
                                             title="Conversar"
                                         >
                                             {connectingId === member.id ? (
-                                                <div className="w-5 h-5 border-2 border-white/30 border-t-[#4B88A2] rounded-full animate-spin" />
+                                                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-[#4B88A2] rounded-full animate-spin" />
                                             ) : (
-                                                <MessageCircle className="w-5 h-5 text-white/40 group-hover:text-[#4B88A2] transition-colors" />
+                                                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white/40 group-hover:text-[#4B88A2] transition-colors" />
                                             )}
                                         </button>
                                     </div>

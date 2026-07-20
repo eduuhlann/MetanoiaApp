@@ -512,7 +512,7 @@ const DevotionalsPage: React.FC = () => {
                             {/* STEP 1: Config */}
                             {wizardStep === 'config' && (
                                 <div className="space-y-6">
-                                    <div className="p-5 sm:p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                                    <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <Sparkles size={18} style={{ color: '#4B88A2' }} />
                                             <h3 className="text-lg font-bold tracking-tight">Sobre o que será o devocional?</h3>
@@ -620,7 +620,7 @@ const DevotionalsPage: React.FC = () => {
                             {/* STEP 2: Preview */}
                             {wizardStep === 'preview' && (
                                 <div className="space-y-6">
-                                    <div className="p-8 rounded-[2.5rem] space-y-4" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                                    <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-4" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <div className="flex items-center gap-2 mb-1">
                                             <CheckCircle2 size={16} style={{ color: '#4B88A2' }} />
                                             <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: '#4B88A2' }}>Gerado pela IA • NVI</span>
@@ -681,7 +681,7 @@ const DevotionalsPage: React.FC = () => {
                             {/* STEP 3: Mode (Solo/Group) */}
                             {wizardStep === 'mode' && (
                                 <div className="space-y-6">
-                                    <div className="p-5 sm:p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                                    <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <h3 className="text-lg font-bold tracking-tight">Sozinho ou em grupo?</h3>
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
@@ -746,7 +746,7 @@ const DevotionalsPage: React.FC = () => {
                             {/* STEP 4: Group Info (name + photo) */}
                             {wizardStep === 'group-info' && (
                                 <div className="space-y-6">
-                                    <div className="p-5 sm:p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                                    <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <Users size={18} style={{ color: '#4B88A2' }} />
                                             <div>
@@ -777,7 +777,7 @@ const DevotionalsPage: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg" style={{ background: '#4B88A2' }}>
-                                                    <Upload size={16} />
+                                                    <Upload size={14} />
                                                 </div>
                                                 <input type="file" className="hidden" accept="image/*" onChange={handleGroupPhotoUpload} />
                                             </label>
@@ -819,7 +819,7 @@ const DevotionalsPage: React.FC = () => {
                             {/* STEP 5: Invite members */}
                             {wizardStep === 'invite' && (
                                 <div className="space-y-6">
-                                    <div className="p-5 sm:p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                                    <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <Users size={18} style={{ color: '#4B88A2' }} />
                                             <div>
@@ -935,7 +935,7 @@ const DevotionalsPage: React.FC = () => {
                             {/* STEP 6: Save */}
                             {wizardStep === 'result' && (
                                 <div className="space-y-6">
-                                    <div className="p-8 rounded-[2.5rem] space-y-4" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                                    <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] space-y-4" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                         <CheckCircle2 size={32} className="mx-auto" style={{ color: '#4B88A2' }} />
                                         <h3 className="text-xl font-serif italic text-center">{generatedTitle}</h3>
                                         <div className="text-sm leading-relaxed whitespace-pre-wrap text-center" style={{ color: 'rgba(211, 212, 217, 0.7)' }}>

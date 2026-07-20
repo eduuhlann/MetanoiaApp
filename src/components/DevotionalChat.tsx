@@ -280,7 +280,7 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
                     <button
                         onClick={handleSend}
                         disabled={!newMessage.trim() || sending}
-                        className="p-3 rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30"
+                        className="p-3.5 rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30"
                         style={{ background: '#4B88A2' }}
                     >
                         <Send size={18} className="text-white" />
