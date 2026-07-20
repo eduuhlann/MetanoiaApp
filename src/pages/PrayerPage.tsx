@@ -88,7 +88,7 @@ const PrayerPage: React.FC = () => {
                             className="flex flex-col items-center text-center w-full max-w-lg"
                         >
                             <span className="text-[10px] font-black tracking-[0.4em] text-white/20 uppercase mb-4">Tempo de Oração</span>
-                            <h1 className="text-5xl font-black italic tracking-tighter mb-12">Quanto tempo?</h1>
+                            <h1 className="text-4xl sm:text-5xl font-black italic tracking-tighter mb-12">Quanto tempo?</h1>
 
                             <div className="grid grid-cols-4 gap-3 w-full mb-8">
                                 {PRESETS.map(min => (
@@ -141,8 +141,8 @@ const PrayerPage: React.FC = () => {
                             transition={{ duration: 0.4, ease: 'easeOut' }}
                             className="flex flex-col items-center text-center"
                         >
-                            <div className="relative mb-10">
-                                <svg width="320" height="320" className="rotate-[-90deg]">
+                            <div className="relative mb-10 w-full max-w-[320px]">
+                                <svg viewBox="0 0 320 320" className="w-full rotate-[-90deg]">
                                     <circle cx="160" cy="160" r="140" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
                                     <circle
                                         cx="160" cy="160" r="140"
@@ -161,7 +161,7 @@ const PrayerPage: React.FC = () => {
                                         animate={{ scale: isActive ? [1, 1.015, 1] : 1 }}
                                         transition={{ repeat: Infinity, duration: 4 }}
                                     >
-                                        <div className="text-[5.5rem] font-black tracking-tighter italic leading-none tabular-nums">
+                                        <div className="text-[4rem] sm:text-[5.5rem] font-black tracking-tighter italic leading-none tabular-nums">
                                             {isFinished ? '✓' : formatTime(timeLeft)}
                                         </div>
                                     </motion.div>

@@ -111,10 +111,10 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteWallpaper(p.url)}
-                                                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                                    className="absolute top-2 right-2 p-2.5 rounded-full bg-black/60 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
                                                     title="Remover da galeria"
                                                 >
-                                                    <Trash2 size={12} />
+                                                    <Trash2 size={14} />
                                                 </button>
                                             </div>
                                         ))}

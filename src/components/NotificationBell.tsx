@@ -148,7 +148,7 @@ export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode })
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
                         transition={{ duration: 0.18, ease: 'easeOut' }}
-                        className="absolute right-0 top-[calc(100%+10px)] w-[340px] z-[200] origin-top-right"
+                        className="absolute right-0 top-[calc(100%+10px)] w-[calc(100vw-2rem)] max-w-[340px] z-[200] origin-top-right"
                         style={{ maxHeight: '480px' }}
                     >
                         <div className="bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden flex flex-col">

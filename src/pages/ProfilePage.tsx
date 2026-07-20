@@ -316,7 +316,7 @@ const ProfilePage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="pt-20 px-8 pb-8 flex flex-col md:flex-row md:items-start justify-between gap-6 border-b border-white/5 relative z-10">
+                    <div className="pt-20 px-5 md:px-8 pb-8 flex flex-col md:flex-row md:items-start justify-between gap-6 border-b border-white/5 relative z-10">
                         <div className="flex flex-col">
                             <h2 className="text-3xl font-bold tracking-tight font-sans">
                                 {displayName || username || user?.email?.split('@')[0]}
@@ -344,7 +344,7 @@ const ProfilePage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="p-8 space-y-8 relative z-10">
+                    <div className="p-5 md:p-8 space-y-8 relative z-10">
                         <AnimatePresence>
                             {error && (
                                 <motion.div 

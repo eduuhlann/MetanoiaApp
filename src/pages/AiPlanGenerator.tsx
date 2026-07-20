@@ -186,7 +186,7 @@ export default function AiPlanGenerator() {
                             placeholder="Ex: Confiança num futuro incerto..."
                             value={config.theme}
                             onChange={(e) => setConfig({ ...config, theme: e.target.value })}
-                            className="w-full bg-transparent border-b-2 pb-4 text-3xl font-bold text-white focus:outline-none transition-colors placeholder:italic"
+                            className="w-full bg-transparent border-b-2 pb-4 text-xl sm:text-3xl font-bold text-white focus:outline-none transition-colors placeholder:italic"
                             style={{ borderColor: 'rgba(75, 136, 162, 0.3)' }}
                             onFocus={(e) => e.currentTarget.style.borderColor = '#4B88A2'}
                             onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(75, 136, 162, 0.3)'}

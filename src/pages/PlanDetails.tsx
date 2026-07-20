@@ -71,7 +71,7 @@ export default function PlanDetails() {
                     <span className="px-4 py-2 rounded-full text-[10px] font-bold tracking-[0.3em] uppercase mb-6 inline-block" style={{ background: 'rgba(75, 136, 162, 0.1)', border: '1px solid rgba(75, 136, 162, 0.2)', color: 'rgba(75, 136, 162, 0.7)' }}>
                         {plan.category === 'ai' ? 'Plano IA' : plan.category === 'thematic' ? 'Temático' : 'Padrão'} • {plan.durationDays} Dias
                     </span>
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{plan.title}</h1>
+                    <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">{plan.title}</h1>
                     <p className="text-lg opacity-80 max-w-lg mx-auto leading-relaxed" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>
                         {plan.description}
                     </p>
@@ -143,7 +143,7 @@ export default function PlanDetails() {
                                         </p>
 
                                         {dayContent && (
-                                            <div className="max-w-none text-lg leading-relaxed border-l-2 pl-6 my-6" style={{ color: 'rgba(255, 255, 255, 0.7)', borderColor: 'rgba(75, 136, 162, 0.3)' }}>
+                                            <div className="max-w-none text-base md:text-lg leading-relaxed border-l-2 pl-4 md:pl-6 my-6" style={{ color: 'rgba(255, 255, 255, 0.7)', borderColor: 'rgba(75, 136, 162, 0.3)' }}>
                                                 <p className="italic">"{dayContent.content}"</p>
                                             </div>
                                         )}

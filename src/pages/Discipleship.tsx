@@ -936,8 +936,8 @@ const Discipleship: React.FC = () => {
                                             </div>
                                             {isPending ? (
                                                 <div className="flex items-center gap-2 mt-2">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, true); }} style={{ background: '#4B88A2', color: '#fff' }} className="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all">Aceitar</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, false); }} className="px-3 py-1 bg-white/10 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all">Recusar</button>
+                                                     <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, true); }} style={{ background: '#4B88A2', color: '#fff' }} className="px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Aceitar</button>
+                                                     <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, false); }} className="px-4 py-2.5 bg-white/10 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Recusar</button>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center justify-between gap-2 mt-1">
@@ -1011,7 +1011,7 @@ const Discipleship: React.FC = () => {
                                                     ) : (
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4B88A2' }} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#4B88A2' }}>Disponível</span>
+                                                             <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#4B88A2' }}>Disponível</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1177,7 +1177,7 @@ const Discipleship: React.FC = () => {
                                                             <span className="text-[10px] font-black text-white/30 uppercase tracking-widest px-1">
                                                                 {authorProfile?.username || 'Usuário'}
                                                             </span>
-                                                            <div className={cn("px-5 py-3.5 rounded-[28px] max-w-[280px] md:max-w-md group relative transition-all shadow-xl", isMine ? "font-semibold rounded-tr-none" : "bg-white/5 border border-white/10 text-white rounded-tl-none")} style={isMine ? { background: '#4B88A2', color: '#fff' } : {}}>
+                                                             <div className={cn("px-5 py-3.5 rounded-[28px] max-w-[85%] md:max-w-md group relative transition-all shadow-xl", isMine ? "font-semibold rounded-tr-none" : "bg-white/5 border border-white/10 text-white rounded-tl-none")} style={isMine ? { background: '#4B88A2', color: '#fff' } : {}}>
                                                                 {editingNoteId === n.id ? (
                                                                     <div className="space-y-3 min-w-[200px]">
                                                                         <textarea
@@ -1247,7 +1247,7 @@ const Discipleship: React.FC = () => {
                                                                     </>
                                                                 )}
                                                             </div>
-                                                            <span className="text-[8px] text-white/20 font-bold uppercase px-1">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                             <span className="text-[10px] text-white/20 font-bold uppercase px-1">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                         </div>
                                                     </motion.div>
                                                 );
@@ -1448,7 +1448,7 @@ const ChallengeMessageCard = ({ note, isMine }: { note: any, isMine?: boolean })
 
         return (
             <div className={cn(
-                "bg-black border border-white/10 rounded-[32px] p-6 md:p-8 space-y-6 max-w-sm shadow-2xl relative overflow-hidden group",
+                "bg-black border border-white/10 rounded-[32px] p-6 md:p-8 space-y-6 max-w-full sm:max-w-sm shadow-2xl relative overflow-hidden group",
                 isMine ? "border-white/30" : ""
             )}>
                 {/* Decorative element */}

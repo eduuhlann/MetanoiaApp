@@ -67,7 +67,7 @@ const FloatingDockMobile = ({
                     if (item.onClick) item.onClick();
                     setOpen(false);
                   }}
-                  className="h-10 w-10 rounded-full flex items-center justify-center cursor-pointer relative bg-neutral-800"
+                  className="h-11 w-11 rounded-full flex items-center justify-center cursor-pointer relative bg-neutral-800"
                 >
                   <div className={item.full ? "h-full w-full" : "h-4 w-4"}>{item.icon}</div>
                 </div>
@@ -78,7 +78,7 @@ const FloatingDockMobile = ({
       </AnimatePresence>
       <button
         onClick={() => setOpen(!open)}
-        className="h-10 w-10 rounded-full flex items-center justify-center bg-neutral-800"
+        className="h-11 w-11 rounded-full flex items-center justify-center bg-neutral-800"
       >
         <IconLayoutNavbarCollapse className="h-5 w-5 text-neutral-400" />
       </button>

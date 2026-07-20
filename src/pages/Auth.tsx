@@ -165,13 +165,13 @@ export default function Auth() {
                         <div className="backdrop-blur-3xl rounded-[3rem] p-8 md:p-14 shadow-2xl shadow-black/50 text-center" style={{ background: 'rgba(37, 38, 39, 0.8)', border: '1px solid rgba(75, 136, 162, 0.2)' }}>
                             <div className="mb-10">
                                 <div className="lg:hidden mb-8">
-                                    <img src={MetanoiaStory} alt="Metanoia" className="w-80 h-auto object-contain mx-auto drop-shadow-[0_0_20px_rgba(75,136,162,0.2)]" />
+                                    <img src={MetanoiaStory} alt="Metanoia" className="w-full max-w-[280px] h-auto object-contain mx-auto drop-shadow-[0_0_20px_rgba(75,136,162,0.2)]" />
                                 </div>
-                                <h1 className="text-5xl md:text-6xl font-outfit font-extrabold tracking-[-0.05em] mb-4 leading-[0.9] uppercase group" style={{ color: '#FFF9FB' }}>
+                                <h1 className="text-4xl md:text-5xl lg:text-6xl font-outfit font-extrabold tracking-[-0.05em] mb-4 leading-[0.9] uppercase group" style={{ color: '#FFF9FB' }}>
                                     BEM-VINDO AO <br/>
                                     <span style={{ color: '#4B88A2' }} className="group-hover:opacity-80 transition-opacity duration-700">MetanoiaApp</span>
                                 </h1>
-                                <p className="text-[9px] font-bold tracking-[0.5em] uppercase" style={{ color: '#D3D4D9' }}>
+                                <p className="text-[11px] font-bold tracking-[0.5em] uppercase" style={{ color: '#D3D4D9' }}>
                                     Escolha como se conectar
                                 </p>
                             </div>
@@ -222,16 +222,16 @@ export default function Auth() {
                             )}
 
                             <div className="mt-12 pt-8" style={{ borderTop: '1px solid rgba(75, 136, 162, 0.1)' }}>
-                                <p className="text-[9px] font-black tracking-[0.3em] uppercase leading-relaxed" style={{ color: 'rgba(211, 212, 217, 0.3)' }}>
+                                <p className="text-[11px] font-black tracking-[0.3em] uppercase leading-relaxed" style={{ color: 'rgba(211, 212, 217, 0.3)' }}>
                                     Acesso seguro via Supabase Auth.<br/>
                                     Seus dados estão protegidos.
                                 </p>
                             </div>
                         </div>
 
-                        <p className="mt-12 text-center text-[9px] font-black tracking-[0.4em] leading-relaxed uppercase" style={{ color: 'rgba(211, 212, 217, 0.2)' }}>
+                        <p className="mt-12 text-center text-[11px] font-black tracking-[0.4em] leading-relaxed uppercase" style={{ color: 'rgba(211, 212, 217, 0.2)' }}>
                             AO CONTINUAR VOCÊ CONCORDA COM OS<br />
-                            <span className="underline underline-offset-8 text-[8px]" style={{ color: 'rgba(211, 212, 217, 0.3)', textDecorationColor: 'rgba(75, 136, 162, 0.2)' }}>
+                            <span className="underline underline-offset-8 text-[10px]" style={{ color: 'rgba(211, 212, 217, 0.3)', textDecorationColor: 'rgba(75, 136, 162, 0.2)' }}>
                                 TERMOS E PRIVACIDADE
                             </span>
                         </p>

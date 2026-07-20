@@ -15,6 +15,41 @@ ALTER TABLE profiles
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
+-- 1.1 RLS para profiles (permitir leitura de todos os perfis)
+-- ============================================
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Authenticated users can view all profiles' AND tablename = 'profiles'
+  ) THEN
+    CREATE POLICY "Authenticated users can view all profiles"
+      ON profiles FOR SELECT
+      TO authenticated
+      USING (true);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can update own profile' AND tablename = 'profiles'
+  ) THEN
+    CREATE POLICY "Users can update own profile"
+      ON profiles FOR UPDATE
+      USING (auth.uid() = id);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert own profile' AND tablename = 'profiles'
+  ) THEN
+    CREATE POLICY "Users can insert own profile"
+      ON profiles FOR INSERT
+      WITH CHECK (auth.uid() = id);
+  END IF;
+END $$;
+
 -- 2. Criar tabela events
 -- ============================================
 CREATE TABLE IF NOT EXISTS events (

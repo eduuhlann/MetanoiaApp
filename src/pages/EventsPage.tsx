@@ -167,7 +167,7 @@ const EventsPage: React.FC = () => {
                             exit={{ opacity: 0, height: 0 }}
                             className="mb-12 overflow-hidden"
                         >
-                            <div className="p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
+                            <div className="p-5 md:p-8 rounded-[2.5rem] space-y-6" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.15)' }}>
                                 <h3 className="text-lg font-bold tracking-tight">Novo Evento</h3>
                                 
                                 <input
@@ -185,7 +185,7 @@ const EventsPage: React.FC = () => {
                                     className="w-full rounded-2xl py-4 px-5 focus:outline-none transition-all text-white placeholder:text-[rgba(211,212,217,0.3)] font-normal text-sm resize-none min-h-[80px]"
                                     style={{ background: 'rgba(75, 136, 162, 0.08)', border: '1px solid rgba(75, 136, 162, 0.15)' }}
                                 />
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <input
                                         type="date"
                                         value={date}
