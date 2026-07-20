@@ -20,6 +20,9 @@ import DevotionalsPage from './pages/DevotionalsPage';
 import Discipleship from './pages/Discipleship';
 import Settings from './pages/Settings';
 import ProfilePage from './pages/ProfilePage';
+import BiblePage from './pages/BiblePage';
+import PublicProfilePage from './pages/PublicProfilePage';
+import MembersPage from './pages/ActivityFeed';
 import { DiscipleshipListener } from './components/DiscipleshipListener';
 
 function AnimatedRoutes() {
@@ -85,6 +88,31 @@ function AnimatedRoutes() {
         <Route path="/profile" element={
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/bible" element={
+          <ProtectedRoute>
+            <BiblePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/bible/:book" element={
+          <ProtectedRoute>
+            <BiblePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/bible/:book/:chapter" element={
+          <ProtectedRoute>
+            <BiblePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/user/:userId" element={
+          <ProtectedRoute>
+            <PublicProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/feed" element={
+          <ProtectedRoute>
+            <MembersPage />
           </ProtectedRoute>
         } />
       </Routes>

@@ -35,13 +35,8 @@ import { useProfile } from '../contexts/ProfileContext';
 import { discipleshipService, DiscipleshipTask, DiscipleshipNote } from '../services/features/discipleshipService';
 import { statsService, BibleStats } from '../services/features/statsService';
 import PageTransition from '../components/PageTransition';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
 
 const Discipleship: React.FC = () => {
     const navigate = useNavigate();
@@ -1041,6 +1036,9 @@ const Discipleship: React.FC = () => {
                                                 <AnimatePresence>
                                                     {isMenuOpen && (
                                                         <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} style={{ background: '#1a1a1a' }} className="absolute right-0 top-full mt-2 w-48 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
+                                                            <button onClick={() => { setIsMyChallengesOpen(true); setIsMenuOpen(false); }} className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest border-b border-white/5">
+                                                                <TrendingUp className="w-4 h-4 text-white/40" /> Meus Desafios
+                                                            </button>
                                                             <button onClick={() => { handleClearConversation(); setIsMenuOpen(false); }} className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest border-b border-white/5">
                                                                 <Trash2 className="w-4 h-4 text-white/40" /> Limpar Conversa
                                                             </button>
@@ -1076,7 +1074,7 @@ const Discipleship: React.FC = () => {
                                                 let target = { book: '', start: 0, end: 0 };
                                                 try {
                                                     target = JSON.parse(task.target_id || '{}');
-                                                    const readingHistory = (stats as any)?.readingHistory;
+                                                    const readingHistory = stats?.readingHistory;
                                                     if (readingHistory) {
                                                         const bookStats = readingHistory.find((s: any) => s.book === target.book);
                                                         if (bookStats) {
@@ -1508,7 +1506,7 @@ const MyChallengesModal = ({ isOpen, onClose, tasks, stats, onRefresh, currentUs
                                     let target = { book: '', start: 0, end: 0 };
                                     try {
                                         target = JSON.parse(task.target_id || '{}');
-                                        const readingHistory = (stats as any)?.readingHistory;
+                                        const readingHistory = stats?.readingHistory;
                                         if (readingHistory) {
                                             const bookStats = readingHistory.find((s: any) => s.book === target.book);
                                             if (bookStats) {

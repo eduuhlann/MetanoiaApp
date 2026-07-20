@@ -5,12 +5,7 @@ import { ArrowLeft, Sparkles, Clock, BookOpen, Sun, Moon, Sunrise, ChevronRight 
 import { plansService } from '../services/features/plansService';
 import { callGroqChat } from '../services/groqService';
 import { Loading } from '../components/Loading';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../lib/utils';
 
 type Step = 'theme' | 'duration' | 'testament' | 'depth' | 'period' | 'generating' | 'success';
 

@@ -11,12 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { plansService, STATIC_PLANS, Plan, UserPlan } from '../services/features/plansService';
 import PageTransition from '../components/PageTransition';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../lib/utils';
 
 const PlansPage: React.FC = () => {
     const navigate = useNavigate();

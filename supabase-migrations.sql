@@ -426,9 +426,19 @@ CREATE POLICY "Anyone can view group members"
   ON discipleship_group_members FOR SELECT
   USING (true);
 
-CREATE POLICY "Authenticated users can join groups"
+CREATE POLICY "Users can join groups themselves"
   ON discipleship_group_members FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Leaders can invite members to their groups"
+  ON discipleship_group_members FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM discipleship_groups
+      WHERE discipleship_groups.id = group_id
+      AND discipleship_groups.leader_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "Members can update their status"
   ON discipleship_group_members FOR UPDATE

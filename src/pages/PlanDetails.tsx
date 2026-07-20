@@ -4,12 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, CheckCircle2, Circle, BookOpen } from 'lucide-react';
 import { plansService, STATIC_PLANS, Plan, UserPlan } from '../services/features/plansService';
 import PageTransition from '../components/PageTransition';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../lib/utils';
 
 export default function PlanDetails() {
     const { id } = useParams<{ id: string }>();

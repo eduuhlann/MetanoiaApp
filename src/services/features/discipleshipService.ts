@@ -306,6 +306,45 @@ export const discipleshipService = {
         return (notesCount || 0) + (invitesCount || 0) + (groupInvitesCount || 0);
     },
 
+    async getFeedActivity(userId: string): Promise<any[]> {
+        const [readingRes, tasksRes] = await Promise.all([
+            supabase.from('reading_progress').select('user_id, book_abbrev, chapter_number, created_at').neq('user_id', userId).order('created_at', { ascending: false }).limit(30),
+            supabase.from('discipleship_tasks').select('user_id:disciple_id, title, type, is_completed, created_at').neq('disciple_id', userId).eq('is_completed', true).order('created_at', { ascending: false }).limit(20)
+        ]);
+        const allUserIds = new Set<string>();
+        (readingRes.data || []).forEach((r: any) => allUserIds.add(r.user_id));
+        (tasksRes.data || []).forEach((t: any) => allUserIds.add(t.user_id));
+        const ids = Array.from(allUserIds);
+        if (ids.length === 0) return [];
+        const { data: profilesData } = await supabase.from('profiles').select('id, username, display_name, avatar_url').in('id', ids);
+        const profilesMap = new Map<string, any>();
+        (profilesData || []).forEach((p: any) => profilesMap.set(p.id, p));
+        const activities: any[] = [];
+        (readingRes.data || []).forEach((r: any) => {
+            activities.push({
+                id: `read-${r.user_id}-${r.book_abbrev}-${r.chapter_number}`,
+                type: 'reading',
+                userId: r.user_id,
+                profile: profilesMap.get(r.user_id),
+                book: r.book_abbrev,
+                chapter: r.chapter_number,
+                created_at: r.created_at,
+            });
+        });
+        (tasksRes.data || []).forEach((t: any) => {
+            activities.push({
+                id: `task-${t.user_id}-${t.created_at}`,
+                type: 'challenge',
+                userId: t.user_id,
+                profile: profilesMap.get(t.user_id),
+                title: t.title,
+                created_at: t.created_at,
+            });
+        });
+        activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        return activities.slice(0, 30);
+    },
+
     async getRecentNotifications(userId: string): Promise<any[]> {
         const notifications: any[] = [];
         const { data: unreadNotes } = await supabase.from('discipleship_notes').select('*, profiles:author_id(username, avatar_url)').eq('is_read', false).neq('author_id', userId).or(`leader_id.eq.${userId},disciple_id.eq.${userId}`).order('created_at', { ascending: false }).limit(10);

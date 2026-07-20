@@ -30,12 +30,7 @@ import { supabase } from '../lib/supabase';
 import { generateDevotional } from '../services/groqService';
 import PageTransition from '../components/PageTransition';
 import DevotionalChat from '../components/DevotionalChat';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../lib/utils';
 
 const BIBLE_BOOKS = [
     'Gênesis', 'Êxodo', 'Levítico', 'Números', 'Deuteronômio',

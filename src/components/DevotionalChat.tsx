@@ -3,12 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Send, ArrowLeft, Users, BookOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../lib/utils';
 
 interface ChatMessage {
     id: string;

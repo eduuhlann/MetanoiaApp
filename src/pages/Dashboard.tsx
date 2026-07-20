@@ -32,7 +32,7 @@ import {
     MapPin,
     Users,
     Sparkles,
-    Compass
+    Compass,
 } from 'lucide-react';
 import CustomizationModal from '../components/CustomizationModal';
 import { NotificationBell } from '../components/NotificationBell';
@@ -41,12 +41,7 @@ import ParticleBackground from '../components/ParticleBackground';
 import PageTransition from '../components/PageTransition';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { supabase } from '../lib/supabase';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
+import { cn } from '../lib/utils';
 
 const AnimatedIcon = ({
     fallback: FallbackIcon,
@@ -301,7 +296,9 @@ export default function Dashboard() {
     const menuItems = useMemo(() => {
         const items = [
             { id: 'plans', icon: Compass, label: 'Planos', description: 'Jornadas de estudo bíblico', path: '/plans' },
+            { id: 'bible', icon: BookOpen, label: 'Bíblia', description: 'Leitura e estudo das Escrituras', path: '/bible' },
             { id: 'discipleship', icon: Users, label: 'Discipulado', description: 'Conexões e grupos', path: '/discipleship' },
+            { id: 'feed', icon: Users, label: 'Membros', description: 'Veja todos os membros', path: '/feed' },
             { id: 'events', icon: Calendar, label: 'Eventos', description: 'Próximos encontros', path: '/events' },
             { id: 'customize', icon: PaletteIcon, label: 'Personalizar', description: 'Mude as cores e fundos', action: () => setIsCustomizationOpen(true) },
         ];

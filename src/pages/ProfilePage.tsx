@@ -13,15 +13,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { supabase } from '../lib/supabase';
-import { twMerge } from 'tailwind-merge';
-import { clsx, type ClassValue } from 'clsx';
+import { cn } from '../lib/utils';
 import PageTransition from '../components/PageTransition';
 import ImageCropModal from '../components/ImageCropModal';
 import getCroppedImg from '../utils/imageUtils';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
 
 const ProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -74,6 +69,11 @@ const ProfilePage: React.FC = () => {
             return;
         }
 
+        if (file.type === 'image/gif') {
+            uploadGif(file, type);
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => {
             setImageToCrop(reader.result as string);
@@ -82,6 +82,48 @@ const ProfilePage: React.FC = () => {
             setCropModalOpen(true);
         };
         reader.readAsDataURL(file);
+    };
+
+    const uploadGif = async (file: File, type: 'avatar' | 'banner') => {
+        if (!user) return;
+        setUploading(true);
+        setError('');
+        try {
+            const ext = file.type === 'image/gif' ? 'gif' : 'jpg';
+            const filePath = `${user.id}/${type}.${ext}`;
+            const bucket = type === 'avatar' ? 'avatars' : 'banners';
+
+            const { error: uploadErr } = await supabase.storage
+                .from(bucket)
+                .upload(filePath, file, { upsert: true, contentType: file.type });
+
+            if (uploadErr) {
+                const dataUrl = URL.createObjectURL(file);
+                if (type === 'avatar') {
+                    setAvatarUrl(dataUrl);
+                    setPreviewUrl(dataUrl);
+                } else {
+                    setBannerUrl(dataUrl);
+                    setBannerPreviewUrl(dataUrl);
+                }
+            } else {
+                const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+                const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+                if (type === 'avatar') {
+                    setAvatarUrl(publicUrl);
+                    setPreviewUrl(publicUrl);
+                } else {
+                    setBannerUrl(publicUrl);
+                    setBannerPreviewUrl(publicUrl);
+                }
+            }
+        } catch (err: any) {
+            setError(err.message || 'Erro ao processar GIF.');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            if (bannerInputRef.current) bannerInputRef.current.value = '';
+        }
     };
 
     const onCropComplete = async (croppedAreaPixels: any) => {
@@ -95,27 +137,25 @@ const ProfilePage: React.FC = () => {
             const croppedBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
             if (!croppedBlob) throw new Error('Falha ao processar imagem');
 
-            const ext = 'jpg';
+            const isGif = imageToCrop.startsWith('data:image/gif') || imageToCrop.includes('gif');
+            const ext = isGif ? 'gif' : 'jpg';
             const filePath = `${user.id}/${cropType}.${ext}`;
             const bucket = cropType === 'avatar' ? 'avatars' : 'banners';
+            const contentType = isGif ? 'image/gif' : 'image/jpeg';
 
             const { error: uploadErr } = await supabase.storage
                 .from(bucket)
-                .upload(filePath, croppedBlob, { upsert: true });
+                .upload(filePath, croppedBlob, { upsert: true, contentType });
 
             if (uploadErr) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const dataUrl = ev.target?.result as string;
-                    if (cropType === 'avatar') {
-                        setAvatarUrl(dataUrl);
-                        setPreviewUrl(dataUrl);
-                    } else {
-                        setBannerUrl(dataUrl);
-                        setBannerPreviewUrl(dataUrl);
-                    }
-                };
-                reader.readAsDataURL(croppedBlob);
+                const dataUrl = URL.createObjectURL(croppedBlob);
+                if (cropType === 'avatar') {
+                    setAvatarUrl(dataUrl);
+                    setPreviewUrl(dataUrl);
+                } else {
+                    setBannerUrl(dataUrl);
+                    setBannerPreviewUrl(dataUrl);
+                }
             } else {
                 const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
                 const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
@@ -216,6 +256,11 @@ const ProfilePage: React.FC = () => {
                                 <div className="w-full h-full flex flex-col items-center justify-center text-white/20 bg-[#0d0d0d]">
                                     <Upload size={32} className="mb-2" />
                                     <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Adicionar Banner</span>
+                                </div>
+                            )}
+                            {uploading && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-10">
+                                    <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                                 </div>
                             )}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/banner:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">

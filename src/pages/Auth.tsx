@@ -60,14 +60,15 @@ function AuthParticles() {
             animId = requestAnimationFrame(draw);
         };
 
-        window.addEventListener('resize', () => { resize(); init(); });
+        const handleResize = () => { resize(); init(); };
+        window.addEventListener('resize', handleResize);
         resize();
         init();
         draw();
 
         return () => {
             cancelAnimationFrame(animId);
-            window.removeEventListener('resize', resize);
+            window.removeEventListener('resize', handleResize);
         };
     }, []);
 

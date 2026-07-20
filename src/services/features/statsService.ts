@@ -8,6 +8,7 @@ export interface BibleStats {
     booksTouched: number;
     estimatedMinutes: number;
     hoursRead: number;
+    readingHistory: { book: string; chapters: number[] }[];
 }
 
 export const statsService = {
@@ -55,14 +56,15 @@ export const statsService = {
             readChapters = this.getReadChapters();
         }
         const booksMap = new Map<string, number[]>();
-        readChapters.forEach(entry => { const [book] = entry.split(':'); if (!booksMap.has(book)) booksMap.set(book, []); });
+        readChapters.forEach(entry => { const [book, chapter] = entry.split(':'); if (!booksMap.has(book)) booksMap.set(book, []); booksMap.get(book)!.push(Number(chapter)); });
         const estimatedMinutes = readChapters.length * 4;
         return {
             totalChaptersRead: readChapters.length,
             completionPercentage: (readChapters.length / totalChapters) * 100,
             booksTouched: booksMap.size,
             estimatedMinutes,
-            hoursRead: Math.floor(estimatedMinutes / 60)
+            hoursRead: Math.floor(estimatedMinutes / 60),
+            readingHistory: Array.from(booksMap.entries()).map(([book, chapters]) => ({ book, chapters })),
         };
     },
 
@@ -70,14 +72,15 @@ export const statsService = {
         const readChapters = this.getReadChapters();
         const totalChapters = 1189;
         const booksMap = new Map<string, number[]>();
-        readChapters.forEach(entry => { const [book] = entry.split(':'); if (!booksMap.has(book)) booksMap.set(book, []); });
+        readChapters.forEach(entry => { const [book, chapter] = entry.split(':'); if (!booksMap.has(book)) booksMap.set(book, []); booksMap.get(book)!.push(Number(chapter)); });
         const estimatedMinutes = readChapters.length * 4;
         return {
             totalChaptersRead: readChapters.length,
             completionPercentage: (readChapters.length / totalChapters) * 100,
             booksTouched: booksMap.size,
             estimatedMinutes,
-            hoursRead: Math.floor(estimatedMinutes / 60)
+            hoursRead: Math.floor(estimatedMinutes / 60),
+            readingHistory: Array.from(booksMap.entries()).map(([book, chapters]) => ({ book, chapters })),
         };
     }
 };
