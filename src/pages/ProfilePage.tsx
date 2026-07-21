@@ -9,7 +9,7 @@ import {
     AlertCircle,
     CheckCircle2
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { supabase } from '../lib/supabase';
@@ -48,9 +48,9 @@ const ProfilePage: React.FC = () => {
     const [cropAspect, setCropAspect] = useState(1);
     const [cropType, setCropType] = useState<'avatar' | 'banner'>('avatar');
 
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [spotifyConnected, setSpotifyConnected] = useState(false);
-    const [spotifyChecking, setSpotifyChecking] = useState(true);
+    const [lastfmUsername, setLastfmUsername] = useState('');
+    const [lastfmConnected, setLastfmConnected] = useState(false);
+    const [lastfmSaving, setLastfmSaving] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -66,26 +66,17 @@ const ProfilePage: React.FC = () => {
     }, [profile]);
 
     useEffect(() => {
-        const spotifyStatus = searchParams.get('spotify');
-        if (spotifyStatus === 'connected') {
-            setSpotifyConnected(true);
-            setSearchParams({});
-        } else if (spotifyStatus === 'error') {
-            setError('Erro ao conectar com Spotify.');
-            setSearchParams({});
-        }
-    }, [searchParams, setSearchParams]);
-
-    useEffect(() => {
         if (!user) return;
         supabase
-            .from('spotify_tokens')
-            .select('user_id')
+            .from('user_music_settings')
+            .select('lastfm_username')
             .eq('user_id', user.id)
             .maybeSingle()
             .then(({ data }) => {
-                setSpotifyConnected(!!data);
-                setSpotifyChecking(false);
+                if (data?.lastfm_username) {
+                    setLastfmUsername(data.lastfm_username);
+                    setLastfmConnected(true);
+                }
             });
     }, [user]);
 
@@ -451,36 +442,47 @@ const ProfilePage: React.FC = () => {
 
                             <div className="space-y-3">
                                 <label className="text-[10px] font-normal tracking-[0.2em] text-white/40 uppercase ml-1 block">
-                                    Spotify
+                                    Última Música (Last.fm)
                                 </label>
-                                {spotifyConnected ? (
-                                    <div className="space-y-3">
-                                        <SpotifyWidget userId={user?.id || ''} />
-                                        <p className="text-[10px] text-white/20 ml-1">
-                                            Seu status do Spotify está visível no seu perfil público.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <a
-                                        href={`${window.location.hostname === 'localhost' ? 'https://metanoiaapp-ten.vercel.app' : ''}/api/spotify/auth?userId=${user?.id || ''}`}
-                                        className={cn(
-                                            "flex items-center gap-3 p-4 bg-[#1DB954]/10 border border-[#1DB954]/20 rounded-2xl transition-all hover:bg-[#1DB954]/20 group",
-                                            spotifyChecking && "opacity-50 pointer-events-none"
-                                        )}
-                                    >
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-[#1DB954] flex-shrink-0" fill="currentColor">
-                                            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                                        </svg>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold text-[#1DB954] group-hover:text-[#1ed760] transition-colors">
-                                                Conectar Spotify
-                                            </p>
-                                            <p className="text-[10px] text-white/30">
-                                                Mostrar o que você está ouvindo no seu perfil
-                                            </p>
-                                        </div>
-                                    </a>
+                                {lastfmConnected && (
+                                    <SpotifyWidget userId={user?.id || ''} />
                                 )}
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={lastfmUsername}
+                                        onChange={(e) => { setLastfmUsername(e.target.value); setLastfmConnected(false); }}
+                                        className="flex-1 bg-[#121212] border border-white/5 focus:border-sky-400/30 focus:bg-[#161616] rounded-2xl py-4 px-5 focus:outline-none transition-all text-white placeholder:text-white/10 font-normal font-sans text-sm"
+                                        placeholder="Seu username do Last.fm"
+                                    />
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={async () => {
+                                            if (!lastfmUsername.trim() || !user) return;
+                                            setLastfmSaving(true);
+                                            try {
+                                                const apiBase = window.location.hostname === 'localhost' ? 'https://metanoiaapp-ten.vercel.app' : '';
+                                                const res = await fetch(`${apiBase}/api/lastfm/connect`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ userId: user.id, lastfmUsername: lastfmUsername.trim() }),
+                                                });
+                                                const data = await res.json();
+                                                if (data.ok) setLastfmConnected(true);
+                                            } catch { } finally {
+                                                setLastfmSaving(false);
+                                            }
+                                        }}
+                                        disabled={!lastfmUsername.trim() || lastfmSaving}
+                                        className="px-5 py-4 bg-white/[0.05] border border-white/5 hover:bg-white/10 rounded-2xl font-bold text-xs tracking-wider uppercase transition-all disabled:opacity-30 flex-shrink-0"
+                                    >
+                                        {lastfmSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : 'Salvar'}
+                                    </motion.button>
+                                </div>
+                                <p className="text-[10px] text-white/20 ml-1">
+                                    Crie uma conta grátis em <a href="https://www.last.fm/join" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/40">last.fm</a> e conecte o Spotify nas configurações do app.
+                                </p>
                             </div>
                         </div>
                     </div>

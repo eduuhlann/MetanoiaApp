@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 
 interface NowPlayingData {
@@ -7,9 +7,9 @@ interface NowPlayingData {
   name?: string;
   artist?: string;
   album_art?: string;
-  progress_ms?: number;
-  duration_ms?: number;
-  spotify_url?: string;
+  album?: string;
+  lastfm_username?: string;
+  lastfm_url?: string;
 }
 
 interface SpotifyWidgetProps {
@@ -19,9 +19,6 @@ interface SpotifyWidgetProps {
 const SpotifyWidget: React.FC<SpotifyWidgetProps> = ({ userId }) => {
   const [data, setData] = useState<NowPlayingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const progressRef = useRef<HTMLDivElement>(null);
-  const startRef = useRef<number>(0);
-  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     let active = true;
@@ -29,7 +26,7 @@ const SpotifyWidget: React.FC<SpotifyWidgetProps> = ({ userId }) => {
     const fetchNowPlaying = async () => {
       try {
         const apiBase = window.location.hostname === 'localhost' ? 'https://metanoiaapp-ten.vercel.app' : '';
-        const res = await fetch(`${apiBase}/api/spotify/now-playing?userId=${userId}`);
+        const res = await fetch(`${apiBase}/api/lastfm/now-playing?userId=${userId}`);
         const json = await res.json();
         if (active) setData(json);
       } catch {
@@ -40,32 +37,9 @@ const SpotifyWidget: React.FC<SpotifyWidgetProps> = ({ userId }) => {
     };
 
     fetchNowPlaying();
-    const interval = setInterval(fetchNowPlaying, 30000);
+    const interval = setInterval(fetchNowPlaying, 15000);
     return () => { active = false; clearInterval(interval); };
   }, [userId]);
-
-  useEffect(() => {
-    if (!data?.is_playing || !data.progress_ms || !data.duration_ms) return;
-
-    const totalMs = data.duration_ms;
-    const elapsedMs = data.progress_ms;
-    const now = Date.now();
-    startRef.current = now - elapsedMs;
-
-    const tick = () => {
-      const current = Date.now() - startRef.current;
-      const pct = Math.min((current / totalMs) * 100, 100);
-      if (progressRef.current) {
-        progressRef.current.style.width = `${pct}%`;
-      }
-      if (pct < 100) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [data?.is_playing, data?.progress_ms, data?.duration_ms]);
 
   if (loading || !data || !data.connected || !data.name) return null;
 
@@ -98,12 +72,12 @@ const SpotifyWidget: React.FC<SpotifyWidgetProps> = ({ userId }) => {
             </span>
           )}
           <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">
-            {data.is_playing ? 'Ouvindo agora' : 'Spotify'}
+            {data.is_playing ? 'Ouvindo agora' : 'Última música'}
           </span>
         </div>
-        {data.spotify_url ? (
+        {data.lastfm_url ? (
           <a
-            href={data.spotify_url}
+            href={data.lastfm_url}
             target="_blank"
             rel="noopener noreferrer"
             className="font-bold text-sm text-white hover:underline truncate block"
@@ -114,15 +88,6 @@ const SpotifyWidget: React.FC<SpotifyWidgetProps> = ({ userId }) => {
           <p className="font-bold text-sm text-white truncate">{data.name}</p>
         )}
         <p className="text-xs text-white/40 truncate">{data.artist}</p>
-        {data.is_playing && data.duration_ms && data.duration_ms > 0 && (
-          <div className="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
-            <div
-              ref={progressRef}
-              className="h-full bg-[#1DB954] rounded-full"
-              style={{ width: '0%' }}
-            />
-          </div>
-        )}
       </div>
     </motion.div>
   );

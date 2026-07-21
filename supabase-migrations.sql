@@ -551,31 +551,29 @@ CREATE POLICY "Users can delete own discipleship files"
   USING (bucket_id = 'discipleship_files' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- =====================================================
--- 15. SPOTIFY TOKENS
+-- 15. USER MUSIC SETTINGS (Last.fm)
 -- =====================================================
 
-CREATE TABLE IF NOT EXISTS spotify_tokens (
+CREATE TABLE IF NOT EXISTS user_music_settings (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  access_token TEXT NOT NULL,
-  refresh_token TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
+  lastfm_username TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-ALTER TABLE spotify_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_music_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own spotify tokens"
-  ON spotify_tokens FOR SELECT
+CREATE POLICY "Users can view own music settings"
+  ON user_music_settings FOR SELECT
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own spotify tokens"
-  ON spotify_tokens FOR INSERT
+CREATE POLICY "Users can insert own music settings"
+  ON user_music_settings FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own spotify tokens"
-  ON spotify_tokens FOR UPDATE
+CREATE POLICY "Users can update own music settings"
+  ON user_music_settings FOR UPDATE
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete own spotify tokens"
-  ON spotify_tokens FOR DELETE
+CREATE POLICY "Users can delete own music settings"
+  ON user_music_settings FOR DELETE
   USING (auth.uid() = user_id);
