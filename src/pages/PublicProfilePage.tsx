@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { discipleshipService } from '../services/features/discipleshipService';
 import { Loading } from '../components/Loading';
 import { cn } from '../lib/utils';
+import SpotifyWidget from '../components/SpotifyWidget';
 
 interface PublicProfile {
     id: string;
@@ -119,6 +120,10 @@ const PublicProfilePage: React.FC = () => {
                             {profile.bio}
                         </p>
                     )}
+
+                    <div className="w-full max-w-md mt-6">
+                        <SpotifyWidget userId={userId || ''} />
+                    </div>
 
                     {!isOwnProfile && user && (
                         <button

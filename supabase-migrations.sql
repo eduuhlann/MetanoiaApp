@@ -549,3 +549,33 @@ CREATE POLICY "Users can update own discipleship files"
 CREATE POLICY "Users can delete own discipleship files"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'discipleship_files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- =====================================================
+-- 15. SPOTIFY TOKENS
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS spotify_tokens (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE spotify_tokens ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own spotify tokens"
+  ON spotify_tokens FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own spotify tokens"
+  ON spotify_tokens FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own spotify tokens"
+  ON spotify_tokens FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own spotify tokens"
+  ON spotify_tokens FOR DELETE
+  USING (auth.uid() = user_id);
