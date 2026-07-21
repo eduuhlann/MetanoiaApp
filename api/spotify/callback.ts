@@ -14,11 +14,6 @@ function redirect(res: ServerResponse, location: string) {
   res.end();
 }
 
-function err(res: ServerResponse, msg: string) {
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`<pre>${msg}</pre>`);
-}
-
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   const url = new URL(req.url!, `http://${req.headers.host}`);
   const code = url.searchParams.get('code');
@@ -54,15 +49,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const tokenData = await tokenRes.json();
 
     if (!tokenRes.ok || !tokenData.access_token) {
-      return err(res, JSON.stringify({
-        step: 'token_exchange',
-        status: tokenRes.status,
-        error: tokenData.error,
-        error_description: tokenData.error_description,
-        CLIENT_ID_SET: !!CLIENT_ID,
-        CLIENT_SECRET_SET: !!CLIENT_SECRET,
-        REDIRECT_URI_SET: !!REDIRECT_URI,
-      }, null, 2));
+      return redirect(res, '/profile?spotify=error');
     }
 
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
@@ -78,22 +65,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     );
 
     if (dbError) {
-      return err(res, JSON.stringify({
-        step: 'db_save',
-        error: dbError.message,
-        details: dbError.details,
-        hint: dbError.hint,
-        SUPABASE_URL_SET: !!SUPABASE_URL,
-        SUPABASE_SERVICE_KEY_SET: !!SUPABASE_SERVICE_KEY,
-      }, null, 2));
+      return redirect(res, '/profile?spotify=error');
     }
 
     return redirect(res, '/profile?spotify=connected');
-  } catch (err_: any) {
-    return err(res, JSON.stringify({
-      step: 'catch',
-      message: err_.message,
-      stack: err_.stack,
-    }, null, 2));
+  } catch {
+    return redirect(res, '/profile?spotify=error');
   }
 }
