@@ -17,7 +17,6 @@ import { cn } from '../lib/utils';
 import PageTransition from '../components/PageTransition';
 import ImageCropModal from '../components/ImageCropModal';
 import getCroppedImg from '../utils/imageUtils';
-import SpotifyWidget from '../components/SpotifyWidget';
 
 const ProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -48,10 +47,6 @@ const ProfilePage: React.FC = () => {
     const [cropAspect, setCropAspect] = useState(1);
     const [cropType, setCropType] = useState<'avatar' | 'banner'>('avatar');
 
-    const [lastfmUsername, setLastfmUsername] = useState('');
-    const [lastfmConnected, setLastfmConnected] = useState(false);
-    const [lastfmSaving, setLastfmSaving] = useState(false);
-
     useEffect(() => {
         if (profile) {
             setDisplayName(profile.display_name || profile.username || '');
@@ -64,21 +59,6 @@ const ProfilePage: React.FC = () => {
             setBannerPreviewUrl(profile.banner_url || '');
         }
     }, [profile]);
-
-    useEffect(() => {
-        if (!user) return;
-        supabase
-            .from('user_music_settings')
-            .select('lastfm_username')
-            .eq('user_id', user.id)
-            .maybeSingle()
-            .then(({ data }) => {
-                if (data?.lastfm_username) {
-                    setLastfmUsername(data.lastfm_username);
-                    setLastfmConnected(true);
-                }
-            });
-    }, [user]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
         const file = e.target.files?.[0];
@@ -438,54 +418,9 @@ const ProfilePage: React.FC = () => {
                                     className="w-full bg-[#121212] border border-white/5 focus:border-sky-400/30 focus:bg-[#161616] rounded-2xl py-4 px-5 focus:outline-none transition-all text-white placeholder:text-white/10 font-normal font-sans text-sm resize-none leading-relaxed min-h-[120px]"
                                     placeholder="Escreva algo sobre você..."
                                 />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-normal tracking-[0.2em] text-white/40 uppercase ml-1 block">
-                                    Última Música (Last.fm)
-                                </label>
-                                {lastfmConnected && (
-                                    <SpotifyWidget userId={user?.id || ''} />
-                                )}
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={lastfmUsername}
-                                        onChange={(e) => { setLastfmUsername(e.target.value); setLastfmConnected(false); }}
-                                        className="flex-1 bg-[#121212] border border-white/5 focus:border-sky-400/30 focus:bg-[#161616] rounded-2xl py-4 px-5 focus:outline-none transition-all text-white placeholder:text-white/10 font-normal font-sans text-sm"
-                                        placeholder="Seu username do Last.fm"
-                                    />
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={async () => {
-                                            if (!lastfmUsername.trim() || !user) return;
-                                            setLastfmSaving(true);
-                                            try {
-                                                const apiBase = window.location.hostname === 'localhost' ? 'https://metanoiaapp-ten.vercel.app' : '';
-                                                const res = await fetch(`${apiBase}/api/lastfm/connect`, {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ userId: user.id, lastfmUsername: lastfmUsername.trim() }),
-                                                });
-                                                const data = await res.json();
-                                                if (data.ok) setLastfmConnected(true);
-                                            } catch { } finally {
-                                                setLastfmSaving(false);
-                                            }
-                                        }}
-                                        disabled={!lastfmUsername.trim() || lastfmSaving}
-                                        className="px-5 py-4 bg-white/[0.05] border border-white/5 hover:bg-white/10 rounded-2xl font-bold text-xs tracking-wider uppercase transition-all disabled:opacity-30 flex-shrink-0"
-                                    >
-                                        {lastfmSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : 'Salvar'}
-                                    </motion.button>
-                                </div>
-                                <p className="text-[10px] text-white/20 ml-1">
-                                    Crie uma conta grátis em <a href="https://www.last.fm/join" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/40">last.fm</a> e conecte o Spotify nas configurações do app.
-                                </p>
-                            </div>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
 

@@ -550,30 +550,3 @@ CREATE POLICY "Users can delete own discipleship files"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'discipleship_files' AND auth.uid()::text = (storage.foldername(name))[1]);
 
--- =====================================================
--- 15. USER MUSIC SETTINGS (Last.fm)
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS user_music_settings (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  lastfm_username TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE user_music_settings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own music settings"
-  ON user_music_settings FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own music settings"
-  ON user_music_settings FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own music settings"
-  ON user_music_settings FOR UPDATE
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own music settings"
-  ON user_music_settings FOR DELETE
-  USING (auth.uid() = user_id);
