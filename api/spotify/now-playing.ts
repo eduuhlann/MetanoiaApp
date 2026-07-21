@@ -81,18 +81,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   });
 
   const status = spotifyRes.status;
-  const body = status === 204 ? null : await spotifyRes.json().catch(() => null);
+  const bodyText = status === 204 ? null : await spotifyRes.text().catch(() => null);
+  let body: any = null;
+  try { body = bodyText ? JSON.parse(bodyText) : null; } catch { body = { raw: bodyText }; }
 
   return json(res, {
     connected: true,
     status,
-    raw: body ? { is_playing: body.is_playing, item: body.item ? { name: body.item.name } : null } : null,
-    is_playing: body?.is_playing || false,
-    name: body?.item?.name || null,
-    artist: body?.item?.artists?.map((a: { name: string }) => a.name).join(', ') || null,
-    album_art: body?.item?.album?.images?.[0]?.url || null,
-    progress_ms: body?.progress_ms || 0,
-    duration_ms: body?.item?.duration_ms || 0,
-    spotify_url: body?.item?.external_urls?.spotify || null,
+    error: body?.error || null,
   });
 }
