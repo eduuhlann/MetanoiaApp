@@ -80,26 +80,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  if (spotifyRes.status === 204 || spotifyRes.status === 202 || !spotifyRes.ok) {
-    return json(res, { connected: true, is_playing: false });
-  }
-
-  const data = await spotifyRes.json();
-
-  if (!data || !data.item) {
-    return json(res, { connected: true, is_playing: false });
-  }
-
-  const track = data.item;
+  const status = spotifyRes.status;
+  const body = status === 204 ? null : await spotifyRes.json().catch(() => null);
 
   return json(res, {
     connected: true,
-    is_playing: data.is_playing,
-    name: track.name,
-    artist: track.artists.map((a: { name: string }) => a.name).join(', '),
-    album_art: track.album.images[0]?.url || null,
-    progress_ms: data.progress_ms || 0,
-    duration_ms: track.duration_ms || 0,
-    spotify_url: track.external_urls?.spotify || null,
+    status,
+    raw: body ? { is_playing: body.is_playing, item: body.item ? { name: body.item.name } : null } : null,
+    is_playing: body?.is_playing || false,
+    name: body?.item?.name || null,
+    artist: body?.item?.artists?.map((a: { name: string }) => a.name).join(', ') || null,
+    album_art: body?.item?.album?.images?.[0]?.url || null,
+    progress_ms: body?.progress_ms || 0,
+    duration_ms: body?.item?.duration_ms || 0,
+    spotify_url: body?.item?.external_urls?.spotify || null,
   });
 }
