@@ -26,13 +26,29 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
   return data.access_token;
 }
 
+function json(res: ServerResponse, data: Record<string, unknown>, status = 200) {
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  });
+  res.end(JSON.stringify(data));
+}
+
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    });
+    return res.end();
+  }
+
   const url = new URL(req.url!, `http://${req.headers.host}`);
   const userId = url.searchParams.get('userId');
 
   if (!userId) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ error: 'userId is required' }));
+    return json(res, { error: 'userId is required' }, 400);
   }
 
   const { data: tokens, error } = await supabase
@@ -42,8 +58,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     .single();
 
   if (error || !tokens) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ connected: false }));
+    return json(res, { connected: false });
   }
 
   let accessToken = tokens.access_token;
@@ -51,8 +66,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   if (new Date(tokens.expires_at) <= new Date()) {
     const newToken = await refreshAccessToken(tokens.refresh_token);
     if (!newToken) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ connected: false }));
+      return json(res, { connected: false });
     }
     accessToken = newToken;
     const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
@@ -66,27 +80,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  if (spotifyRes.status === 204 || spotifyRes.status === 202) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ connected: true, is_playing: false }));
-  }
-
-  if (!spotifyRes.ok) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ connected: true, is_playing: false }));
+  if (spotifyRes.status === 204 || spotifyRes.status === 202 || !spotifyRes.ok) {
+    return json(res, { connected: true, is_playing: false });
   }
 
   const data = await spotifyRes.json();
 
   if (!data || !data.item) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ connected: true, is_playing: false }));
+    return json(res, { connected: true, is_playing: false });
   }
 
   const track = data.item;
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({
+  return json(res, {
     connected: true,
     is_playing: data.is_playing,
     name: track.name,
@@ -95,5 +101,5 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     progress_ms: data.progress_ms || 0,
     duration_ms: track.duration_ms || 0,
     spotify_url: track.external_urls?.spotify || null,
-  }));
+  });
 }

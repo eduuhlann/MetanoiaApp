@@ -462,7 +462,7 @@ const ProfilePage: React.FC = () => {
                                     </div>
                                 ) : (
                                     <a
-                                        href={`/api/spotify/auth?userId=${user?.id || ''}`}
+                                        href={`${window.location.hostname === 'localhost' ? 'https://metanoiaapp-ten.vercel.app' : ''}/api/spotify/auth?userId=${user?.id || ''}`}
                                         className={cn(
                                             "flex items-center gap-3 p-4 bg-[#1DB954]/10 border border-[#1DB954]/20 rounded-2xl transition-all hover:bg-[#1DB954]/20 group",
                                             spotifyChecking && "opacity-50 pointer-events-none"

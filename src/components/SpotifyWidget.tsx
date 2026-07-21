@@ -28,7 +28,8 @@ const SpotifyWidget: React.FC<SpotifyWidgetProps> = ({ userId }) => {
 
     const fetchNowPlaying = async () => {
       try {
-        const res = await fetch(`/api/spotify/now-playing?userId=${userId}`);
+        const apiBase = window.location.hostname === 'localhost' ? 'https://metanoiaapp-ten.vercel.app' : '';
+        const res = await fetch(`${apiBase}/api/spotify/now-playing?userId=${userId}`);
         const json = await res.json();
         if (active) setData(json);
       } catch {
