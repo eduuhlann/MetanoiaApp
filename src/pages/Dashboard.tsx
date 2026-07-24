@@ -31,13 +31,12 @@ import {
     Clock,
     MapPin,
     Users,
+    MessageCircle,
     Sparkles,
     Compass,
-    Cake,
     Zap,
 } from 'lucide-react';
 import CustomizationModal from '../components/CustomizationModal';
-import { NotificationBell } from '../components/NotificationBell';
 import { useNavigate } from 'react-router-dom';
 import ParticleBackground from '../components/ParticleBackground';
 import PageTransition from '../components/PageTransition';
@@ -45,6 +44,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { getWeeklyChallenge, type WeeklyChallenge } from '../services/features/plansService';
+import { discipleshipService } from '../services/features/discipleshipService';
 
 const AnimatedIcon = ({
     fallback: FallbackIcon,
@@ -59,7 +59,7 @@ const AnimatedIcon = ({
     return <FallbackIcon size={size} className={className} />;
 };
 
-function SortableCard({ id, item, navigate, glassStyle }: { id: string, item: any, navigate: any, glassStyle: 'crystal' | 'frosted' | 'solid' }) {
+function SortableCard({ id, item, navigate, glassStyle, notifCount }: { id: string, item: any, navigate: any, glassStyle: 'crystal' | 'frosted' | 'solid', notifCount?: number }) {
     const {
         attributes,
         listeners,
@@ -161,6 +161,11 @@ function SortableCard({ id, item, navigate, glassStyle }: { id: string, item: an
                             size={20}
                             className="text-white transition-all duration-300 group-hover:scale-[1.2]"
                         />
+                        {item.id === 'discipleship' && (notifCount || 0) > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-black text-white px-1" style={{ background: 'var(--danger)' }}>
+                                {notifCount! > 9 ? '9+' : notifCount}
+                            </span>
+                        )}
                     </div>
 
                     <h3
@@ -229,8 +234,8 @@ export default function Dashboard() {
     const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
     const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
     const [myGroups, setMyGroups] = useState<{ id: string; name: string; photo_url: string | null; devotional_title: string }[]>([]);
-    const [birthdayUsers, setBirthdayUsers] = useState<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; birth_date: string; age: number }[]>([]);
     const [weeklyChallenge, setWeeklyChallenge] = useState<WeeklyChallenge | null>(null);
+    const [notifCount, setNotifCount] = useState(0);
 
     const handleSignOut = async () => {
         await signOut();
@@ -296,46 +301,22 @@ export default function Dashboard() {
         fetchMyGroups();
         setWeeklyChallenge(getWeeklyChallenge());
 
-        const fetchBirthdays = async () => {
-            try {
-                const now = new Date();
-                const currentMonth = now.getMonth() + 1;
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('id, username, display_name, avatar_url, birth_date')
-                    .not('birth_date', 'is', null);
-                
-                if (error || !data) {
-                    // Column might not exist yet - show empty state
-                    return;
-                }
-                
-                const monthBirthdays = data
-                    .filter((p: any) => {
-                        const date = new Date(p.birth_date);
-                        return date.getMonth() + 1 === currentMonth;
-                    })
-                    .map((p: any) => {
-                        const birthDate = new Date(p.birth_date);
-                        let age = now.getFullYear() - birthDate.getFullYear();
-                        const monthDiff = now.getMonth() - birthDate.getMonth();
-                        if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
-                            age--;
-                        }
-                        return { ...p, birth_date: p.birth_date, age };
-                    })
-                    .sort((a: any, b: any) => {
-                        const dayA = new Date(a.birth_date).getDate();
-                        const dayB = new Date(b.birth_date).getDate();
-                        return dayA - dayB;
-                    });
-                setBirthdayUsers(monthBirthdays);
-            } catch (err) {
-                // Column might not exist yet - show empty state
-            }
-        };
+    }, [user]);
 
-        fetchBirthdays();
+    useEffect(() => {
+        if (!user) return;
+        const loadCount = async () => {
+            const c = await discipleshipService.getNotificationCount(user.id);
+            setNotifCount(c);
+        };
+        loadCount();
+        const channel = supabase
+            .channel('dash-notif-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'discipleship_notes' }, () => loadCount())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'discipleship_connections', filter: `disciple_id=eq.${user.id}` }, () => loadCount())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'discipleship_group_members', filter: `user_id=eq.${user.id}` }, () => loadCount())
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
     }, [user]);
 
     const displayName = profile?.display_name || profile?.username || user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Jovem Metanoia';
@@ -344,7 +325,7 @@ export default function Dashboard() {
         const items = [
             { id: 'plans', icon: Compass, label: 'Planos', description: 'Jornadas de estudo bíblico', path: '/plans' },
             { id: 'bible', icon: BookOpen, label: 'Bíblia', description: 'Leitura e estudo das Escrituras', path: '/bible' },
-            { id: 'discipleship', icon: Users, label: 'Discipulado', description: 'Conexões e grupos', path: '/discipleship' },
+            { id: 'discipleship', icon: MessageCircle, label: 'Discipulado', description: 'Conexões e grupos', path: '/discipleship' },
             { id: 'feed', icon: Users, label: 'Membros', description: 'Veja todos os membros', path: '/feed' },
             { id: 'events', icon: Calendar, label: 'Eventos', description: 'Próximos encontros', path: '/events' },
             { id: 'customize', icon: PaletteIcon, label: 'Personalizar', description: 'Mude as cores e fundos', action: () => setIsCustomizationOpen(true) },
@@ -403,11 +384,6 @@ export default function Dashboard() {
                             className="!flex mx-0 h-[72px] pb-2 px-4 rounded-full shadow-lg items-end gap-3 translate-y-2 md:translate-y-0"
                             items={[
                                 {
-                                    title: "Notificações",
-                                    icon: <NotificationBell dockMode={true} />,
-                                    href: "#",
-                                },
-                                {
                                     title: "Perfil",
                                     icon: <DockAvatar profile={profile} user={user} />,
                                     href: "/profile",
@@ -447,6 +423,7 @@ export default function Dashboard() {
                                                 item={item}
                                                 navigate={navigate}
                                                 glassStyle={preferences.glassStyle || 'frosted'}
+                                                notifCount={item.id === 'discipleship' ? notifCount : 0}
                                             />
                                         ))}
                                     </div>
@@ -588,70 +565,7 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    <div className="mt-12 space-y-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <div>
-                                <span className="text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>
-                                    {new Date().toLocaleDateString('pt-BR', { month: 'long' })}
-                                </span>
-                                <h2 className="text-xl font-bold tracking-tight mt-1">Aniversariantes</h2>
-                            </div>
-                        </div>
-                        {birthdayUsers.length > 0 ? (
-                            <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                                {birthdayUsers.map((bUser, i) => {
-                                    const birthDay = new Date(bUser.birth_date).getDate();
-                                    const isToday = new Date().getDate() === birthDay;
-                                    return (
-                                        <motion.div
-                                            key={bUser.id}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: i * 0.05 }}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl shrink-0 min-w-[100px] transition-all"
-                                            style={{
-                                                background: isToday ? 'var(--border-strong)' : 'var(--bg-card)',
-                                                border: isToday ? '1px solid var(--accent-hover)' : '1px solid var(--border)',
-                                            }}
-                                        >
-                                            <div className="relative">
-                                                <div className="w-12 h-12 rounded-full bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
-                                                    {bUser.avatar_url ? (
-                                                        <img src={bUser.avatar_url} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <User className="w-5 h-5 text-white/30" />
-                                                    )}
-                                                </div>
-                                                {isToday && (
-                                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'var(--accent-solid)' }}>
-                                                        <Cake className="w-3 h-3 text-white" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-[11px] font-bold truncate max-w-[80px]" style={{ color: 'var(--text-primary)' }}>
-                                                    {bUser.display_name || bUser.username || 'Usuário'}
-                                                </p>
-                                                <p className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>
-                                                    {birthDay}/{new Date(bUser.birth_date).getMonth() + 1}
-                                                </p>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="p-6 rounded-2xl text-center" style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)' }}>
-                                <Cake className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--text-dim)' }} />
-                                <p className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
-                                    Nenhum aniversariante este mês
-                                </p>
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-dim)' }}>
-                                    Adicione sua data de aniversário no perfil
-                                </p>
-                            </div>
-                        )}
-                    </div>
+
                 </div>
             </div>
 

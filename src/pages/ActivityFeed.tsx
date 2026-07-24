@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, User, MessageCircle, BookOpen, Search, X, ExternalLink, Shield } from 'lucide-react';
+import { ArrowLeft, User, MessageCircle, BookOpen, Search, X, ExternalLink, Shield, Cake } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { discipleshipService } from '../services/features/discipleshipService';
@@ -16,6 +16,7 @@ interface MemberProfile {
     banner_url: string | null;
     bio: string | null;
     role: 'leader' | 'member';
+    birth_date: string | null;
 }
 
 const MembersPage: React.FC = () => {
@@ -26,19 +27,58 @@ const MembersPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [connectingId, setConnectingId] = useState<string | null>(null);
     const [previewMember, setPreviewMember] = useState<MemberProfile | null>(null);
+    const [birthdayUsers, setBirthdayUsers] = useState<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; birth_date: string; age: number }[]>([]);
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, username, display_name, avatar_url, banner_url, bio, role')
+                .select('id, username, display_name, avatar_url, banner_url, bio, role, birth_date')
                 .neq('id', user?.id || '')
                 .order('display_name', { ascending: true });
             if (!error && data) setMembers(data);
             setLoading(false);
         };
         load();
+
+        const fetchBirthdays = async () => {
+            try {
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1;
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url, birth_date')
+                    .not('birth_date', 'is', null);
+
+                if (error || !data) return;
+
+                const monthBirthdays = data
+                    .filter((p: any) => {
+                        const date = new Date(p.birth_date);
+                        return date.getMonth() + 1 === currentMonth;
+                    })
+                    .map((p: any) => {
+                        const birthDate = new Date(p.birth_date);
+                        let age = now.getFullYear() - birthDate.getFullYear();
+                        const monthDiff = now.getMonth() - birthDate.getMonth();
+                        if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+                            age--;
+                        }
+                        return { ...p, birth_date: p.birth_date, age };
+                    })
+                    .sort((a: any, b: any) => {
+                        const dayA = new Date(a.birth_date).getDate();
+                        const dayB = new Date(b.birth_date).getDate();
+                        return dayA - dayB;
+                    });
+                setBirthdayUsers(monthBirthdays);
+            } catch {
+                // Column might not exist yet
+            }
+        };
+
+        fetchBirthdays();
     }, [user]);
 
     const filtered = members.filter(m => {
@@ -70,6 +110,71 @@ const MembersPage: React.FC = () => {
                     </button>
                     <h1 className="text-xl font-bold tracking-tight">Membros</h1>
                     <span className="ml-auto text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>{filtered.length}</span>
+                </div>
+
+                <div className="mb-6 space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <div>
+                            <span className="text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>
+                                {new Date().toLocaleDateString('pt-BR', { month: 'long' })}
+                            </span>
+                            <h2 className="text-xl font-bold tracking-tight mt-1">Aniversariantes</h2>
+                        </div>
+                    </div>
+                    {birthdayUsers.length > 0 ? (
+                        <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                            {birthdayUsers.map((bUser, i) => {
+                                const birthDay = new Date(bUser.birth_date).getDate();
+                                const isToday = new Date().getDate() === birthDay;
+                                return (
+                                    <motion.div
+                                        key={bUser.id}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="flex flex-col items-center gap-2 p-4 rounded-2xl shrink-0 min-w-[100px] transition-all"
+                                        style={{
+                                            background: isToday ? 'var(--border-strong)' : 'var(--bg-card)',
+                                            border: isToday ? '1px solid var(--accent-hover)' : '1px solid var(--border)',
+                                        }}
+                                    >
+                                        <div className="relative">
+                                            <div className="w-12 h-12 rounded-full bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
+                                                {bUser.avatar_url ? (
+                                                    <img src={bUser.avatar_url} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <User className="w-5 h-5 text-white/30" />
+                                                )}
+                                            </div>
+                                            {isToday && (
+                                                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'var(--accent-solid)' }}>
+                                                    <Cake className="w-3 h-3 text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-[11px] font-bold truncate max-w-[80px]" style={{ color: 'var(--text-primary)' }}>
+                                                {bUser.display_name || bUser.username || 'Usuário'}
+                                            </p>
+                                            <p className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                                                {birthDay}/{new Date(bUser.birth_date).getMonth() + 1}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="p-6 rounded-2xl text-center" style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)' }}>
+                            <Cake className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--text-dim)' }} />
+                            <p className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
+                                Nenhum aniversariante este mês
+                            </p>
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--text-dim)' }}>
+                                Adicione sua data de aniversário no perfil
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="relative mb-6">

@@ -13,6 +13,7 @@ export interface UserProfile {
     role: 'leader' | 'member';
     onboarding_completed: boolean;
     birth_date: string | null;
+    notifications_seen_at: string | null;
 }
 
 interface ProfileContextType {

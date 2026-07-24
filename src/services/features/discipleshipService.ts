@@ -301,9 +301,11 @@ export const discipleshipService = {
     },
 
     async getNotificationCount(userId: string): Promise<number> {
+        const { data: profile } = await supabase.from('profiles').select('notifications_seen_at').eq('id', userId).single();
+        const seenAt = profile?.notifications_seen_at || '1970-01-01T00:00:00Z';
         const { count: notesCount } = await supabase.from('discipleship_notes').select('*', { count: 'exact', head: true }).eq('is_read', false).neq('author_id', userId).or(`leader_id.eq.${userId},disciple_id.eq.${userId}`);
-        const { count: invitesCount } = await supabase.from('discipleship_connections').select('*', { count: 'exact', head: true }).eq('disciple_id', userId).eq('status', 'pending');
-        const { count: groupInvitesCount } = await supabase.from('discipleship_group_members').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
+        const { count: invitesCount } = await supabase.from('discipleship_connections').select('*', { count: 'exact', head: true }).eq('disciple_id', userId).eq('status', 'pending').gt('created_at', seenAt);
+        const { count: groupInvitesCount } = await supabase.from('discipleship_group_members').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending').gt('created_at', seenAt);
         return (notesCount || 0) + (invitesCount || 0) + (groupInvitesCount || 0);
     },
 
@@ -347,6 +349,10 @@ export const discipleshipService = {
     },
 
     async markAllNotesAsRead(userId: string): Promise<void> {
+        await supabase
+            .from('profiles')
+            .update({ notifications_seen_at: new Date().toISOString() })
+            .eq('id', userId);
         const { error } = await supabase
             .from('discipleship_notes')
             .update({ is_read: true })
@@ -358,11 +364,13 @@ export const discipleshipService = {
 
     async getRecentNotifications(userId: string): Promise<any[]> {
         const notifications: any[] = [];
+        const { data: profile } = await supabase.from('profiles').select('notifications_seen_at').eq('id', userId).single();
+        const seenAt = profile?.notifications_seen_at || '1970-01-01T00:00:00Z';
         const { data: unreadNotes } = await supabase.from('discipleship_notes').select('*, profiles:author_id(username, avatar_url)').eq('is_read', false).neq('author_id', userId).or(`leader_id.eq.${userId},disciple_id.eq.${userId}`).order('created_at', { ascending: false }).limit(10);
         if (unreadNotes) { unreadNotes.forEach(note => { const sender = (note.profiles as any); notifications.push({ id: `note-${note.id}`, type: 'message', title: sender?.username || 'Alguém', body: note.file_url ? 'Enviou um arquivo' : (note.content?.slice(0, 60) + (note.content?.length > 60 ? '…' : '') || ''), avatar_url: sender?.avatar_url || null, created_at: note.created_at, action: '/discipleship' }); }); }
-        const { data: pendingConnections } = await supabase.from('discipleship_connections').select('*, profiles:leader_id(username, avatar_url)').eq('disciple_id', userId).eq('status', 'pending').order('created_at', { ascending: false });
+        const { data: pendingConnections } = await supabase.from('discipleship_connections').select('*, profiles:leader_id(username, avatar_url)').eq('disciple_id', userId).eq('status', 'pending').gt('created_at', seenAt).order('created_at', { ascending: false });
         if (pendingConnections) { pendingConnections.forEach(conn => { const sender = (conn.profiles as any); notifications.push({ id: `conn-${conn.id}`, type: 'invite', title: sender?.username || 'Alguém', body: 'te convidou para ser discípulo', avatar_url: sender?.avatar_url || null, created_at: conn.created_at, action: '/discipleship' }); }); }
-        const { data: pendingGroupInvites } = await supabase.from('discipleship_group_members').select('*, group:group_id(name, avatar_url)').eq('user_id', userId).eq('status', 'pending').order('created_at', { ascending: false });
+        const { data: pendingGroupInvites } = await supabase.from('discipleship_group_members').select('*, group:group_id(name, avatar_url)').eq('user_id', userId).eq('status', 'pending').gt('created_at', seenAt).order('created_at', { ascending: false });
         if (pendingGroupInvites) { pendingGroupInvites.forEach(inv => { const group = (inv.group as any); notifications.push({ id: `group-${inv.id}`, type: 'group_invite', title: group?.name || 'Grupo', body: 'você foi convidado para este grupo', avatar_url: group?.avatar_url || null, created_at: inv.created_at, action: '/discipleship' }); }); }
         notifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         return notifications.slice(0, 15);

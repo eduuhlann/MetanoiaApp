@@ -608,6 +608,40 @@ CREATE POLICY "Users can delete own event photos storage"
   USING (bucket_id = 'event-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- ============================================
+-- 18. Sync OAuth avatar to profiles
+-- ============================================
+
+-- Function to sync avatar from auth.users metadata to profiles
+CREATE OR REPLACE FUNCTION sync_oauth_avatar()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.raw_user_meta_data->>'avatar_url' IS NOT NULL
+     AND (OLD IS NULL OR OLD.raw_user_meta_data->>'avatar_url' IS DISTINCT FROM NEW.raw_user_meta_data->>'avatar_url')
+  THEN
+    UPDATE profiles
+    SET avatar_url = NEW.raw_user_meta_data->>'avatar_url'
+    WHERE id = NEW.id
+      AND (avatar_url IS NULL OR avatar_url = '');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT OR UPDATE ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION sync_oauth_avatar();
+
+-- Backfill: set avatar_url for existing users who have no avatar
+UPDATE profiles p
+SET avatar_url = u.raw_user_meta_data->>'avatar_url'
+FROM auth.users u
+WHERE p.id = u.id
+  AND (p.avatar_url IS NULL OR p.avatar_url = '')
+  AND u.raw_user_meta_data->>'avatar_url' IS NOT NULL;
+
+-- ============================================
 -- 17. Devotional scheduled_for + Journal
 -- ============================================
 DO $$
@@ -648,4 +682,8 @@ CREATE POLICY "Users can update own journal entries"
 CREATE POLICY "Users can delete own journal entries"
   ON devotional_journal FOR DELETE
   USING (auth.uid() = user_id);
+
+-- 19. Adicionar notifications_seen_at para controle de notificações lidas
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS notifications_seen_at TIMESTAMPTZ DEFAULT now();
 
