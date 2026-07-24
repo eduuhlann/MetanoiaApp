@@ -55,7 +55,7 @@ const PublicProfilePage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#252627] flex items-center justify-center">
+            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
                 <Loading fullScreen={false} />
             </div>
         );
@@ -63,9 +63,9 @@ const PublicProfilePage: React.FC = () => {
 
     if (!profile) {
         return (
-            <div className="min-h-screen bg-[#252627] text-white flex flex-col items-center justify-center gap-4">
+            <div className="min-h-screen bg-[var(--bg-primary)] text-white flex flex-col items-center justify-center gap-4">
                 <p className="text-white/60 font-bold">Perfil não encontrado</p>
-                <Link to="/dashboard" className="text-sm text-[#4B88A2] hover:underline">Voltar ao início</Link>
+                <Link to="/dashboard" className="text-sm text-[var(--accent-solid)] hover:underline">Voltar ao início</Link>
             </div>
         );
     }
@@ -73,7 +73,7 @@ const PublicProfilePage: React.FC = () => {
     const isOwnProfile = user?.id === userId;
 
     return (
-        <div className="min-h-screen bg-[#252627] text-white">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-white">
             {/* Banner */}
             <div className="relative h-48 md:h-64 w-full">
                 {profile.banner_url ? (
@@ -85,7 +85,7 @@ const PublicProfilePage: React.FC = () => {
                 ) : (
                     <div className="w-full h-full bg-white/5" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#252627] via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)] via-transparent to-transparent" />
                 <button
                     onClick={() => navigate(-1)}
                     className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-sm rounded-full hover:bg-black/60 transition-colors z-10"
@@ -97,7 +97,7 @@ const PublicProfilePage: React.FC = () => {
             {/* Avatar + Info */}
             <div className="max-w-2xl mx-auto px-6 -mt-16 relative z-10">
                 <div className="flex flex-col items-center text-center">
-                    <div className="w-28 h-28 rounded-full border-4 border-[#252627] bg-white/10 overflow-hidden flex items-center justify-center">
+                    <div className="w-28 h-28 rounded-full border-4 border-[var(--bg-primary)] bg-white/10 overflow-hidden flex items-center justify-center">
                         {profile.avatar_url ? (
                             <img
                                 src={profile.avatar_url}
@@ -128,7 +128,7 @@ const PublicProfilePage: React.FC = () => {
                                 "mt-6 flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all",
                                 startingChat
                                     ? "bg-white/10 text-white/40 cursor-not-allowed"
-                                    : "bg-[#4B88A2] text-white hover:bg-[#3a6d85] active:scale-95"
+                                    : "bg-[var(--accent-solid)] text-[var(--text-on-accent)] hover:bg-[var(--text-secondary)] active:scale-95"
                             )}
                         >
                             <MessageCircle className="w-4 h-4" />

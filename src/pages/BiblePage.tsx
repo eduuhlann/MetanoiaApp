@@ -144,7 +144,7 @@ const BiblePage: React.FC = () => {
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute right-0 top-full mt-2 w-48 bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-64 overflow-y-auto"
+                            className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface-4)] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-64 overflow-y-auto"
                         >
                             {versions.length > 0 ? versions.map(v => (
                                 <button
@@ -320,7 +320,7 @@ const BiblePage: React.FC = () => {
                         />
                         <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                            className="fixed bottom-0 left-0 right-0 z-[70] bg-[#0a0a0a] border-t border-white/10 rounded-t-3xl p-8 shadow-2xl"
+                            className="fixed bottom-0 left-0 right-0 z-[70] bg-[var(--surface-2)] border-t border-white/10 rounded-t-3xl p-8 shadow-2xl"
                         >
                             <div className="max-w-sm mx-auto space-y-8">
                                 <div>

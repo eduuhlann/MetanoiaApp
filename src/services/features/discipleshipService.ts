@@ -30,6 +30,7 @@ export interface DiscipleshipNote {
     author_id: string;
     content: string;
     created_at: string;
+    updated_at?: string | null;
     group_id?: string | null;
     file_url?: string | null;
     file_name?: string | null;
@@ -111,7 +112,7 @@ export const discipleshipService = {
     },
 
     async updateNote(noteId: string, content: string): Promise<void> {
-        const { error } = await supabase.from('discipleship_notes').update({ content }).eq('id', noteId);
+        const { error } = await supabase.from('discipleship_notes').update({ content, updated_at: new Date().toISOString() }).eq('id', noteId);
         if (error) throw error;
     },
 
@@ -343,6 +344,16 @@ export const discipleshipService = {
         });
         activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         return activities.slice(0, 30);
+    },
+
+    async markAllNotesAsRead(userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('discipleship_notes')
+            .update({ is_read: true })
+            .eq('is_read', false)
+            .neq('author_id', userId)
+            .or(`leader_id.eq.${userId},disciple_id.eq.${userId}`);
+        if (error) console.error('Error marking all notes as read:', error);
     },
 
     async getRecentNotifications(userId: string): Promise<any[]> {

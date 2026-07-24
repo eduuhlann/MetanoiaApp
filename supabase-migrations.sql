@@ -15,6 +15,9 @@ ALTER TABLE profiles
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS birth_date DATE;
+
 -- 1.1 RLS para profiles (permitir leitura de todos os perfis)
 -- ============================================
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -390,7 +393,8 @@ CREATE TABLE IF NOT EXISTS discipleship_notes (
   file_name TEXT,
   file_type TEXT,
   is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ
 );
 
 ALTER TABLE discipleship_notes ENABLE ROW LEVEL SECURITY;
@@ -549,4 +553,99 @@ CREATE POLICY "Users can update own discipleship files"
 CREATE POLICY "Users can delete own discipleship files"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'discipleship_files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- 15.1 Add updated_at to discipleship_notes (run if table already exists)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'discipleship_notes' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE discipleship_notes ADD COLUMN updated_at TIMESTAMPTZ;
+  END IF;
+END $$;
+
+-- ============================================
+-- 16. Event Photos
+-- ============================================
+CREATE TABLE IF NOT EXISTS event_photos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  caption TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE event_photos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view event photos"
+  ON event_photos FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can upload event photos"
+  ON event_photos FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own event photos"
+  ON event_photos FOR DELETE
+  USING (auth.uid() = user_id);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE event_photos;
+
+INSERT INTO storage.buckets (id, name, public) VALUES ('event-photos', 'event-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Anyone can view event photos storage"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'event-photos');
+
+CREATE POLICY "Authenticated users can upload event photos storage"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'event-photos' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Users can delete own event photos storage"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'event-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- ============================================
+-- 17. Devotional scheduled_for + Journal
+-- ============================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'devotionals' AND column_name = 'scheduled_for'
+  ) THEN
+    ALTER TABLE devotionals ADD COLUMN scheduled_for TIMESTAMPTZ;
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS devotional_journal (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  devotional_id UUID REFERENCES devotionals(id) ON DELETE CASCADE,
+  day_number INTEGER NOT NULL,
+  reflection TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, devotional_id, day_number)
+);
+
+ALTER TABLE devotional_journal ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own journal entries"
+  ON devotional_journal FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own journal entries"
+  ON devotional_journal FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own journal entries"
+  ON devotional_journal FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own journal entries"
+  ON devotional_journal FOR DELETE
+  USING (auth.uid() = user_id);
 

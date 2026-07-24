@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { discipleshipService } from '../services/features/discipleshipService';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Users, UserPlus, Bell, BellDot } from 'lucide-react';
+import { MessageCircle, Users, UserPlus, Bell, BellDot, CheckCheck } from 'lucide-react';
 
 interface Notification {
     id: string;
@@ -37,9 +37,9 @@ const typeLabel: Record<string, string> = {
 };
 
 const typeColor: Record<string, string> = {
-    message: 'bg-[#4B88A2]/20 text-[#4B88A2] border-[#4B88A2]/30',
-    invite: 'bg-[#BB0A21]/20 text-[#BB0A21] border-[#BB0A21]/30',
-    group_invite: 'bg-[#4B88A2]/20 text-[#4B88A2] border-[#4B88A2]/30',
+    message: 'bg-[var(--accent-soft)] text-[var(--accent-solid)] border-[var(--accent-hover)]',
+    invite: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[var(--danger)]',
+    group_invite: 'bg-[var(--accent-soft)] text-[var(--accent-solid)] border-[var(--accent-hover)]',
 };
 
 export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode }) => {
@@ -49,6 +49,7 @@ export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode })
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [open, setOpen] = useState(false);
     const [loadingNotifs, setLoadingNotifs] = useState(false);
+    const [markingRead, setMarkingRead] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const loadCount = useCallback(async () => {
@@ -105,6 +106,18 @@ export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode })
         navigate(notif.action);
     };
 
+    const handleMarkAllRead = async () => {
+        if (!user || markingRead) return;
+        setMarkingRead(true);
+        try {
+            await discipleshipService.markAllNotesAsRead(user.id);
+            setNotifications([]);
+            setCount(0);
+        } finally {
+            setMarkingRead(false);
+        }
+    };
+
     return (
         <div ref={containerRef} className={`relative ${dockMode ? 'w-full h-full' : ''}`}>
             <button
@@ -113,7 +126,7 @@ export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode })
                     ? "relative w-full h-full flex items-center justify-center"
                     : "group relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20"
                 }
-                style={dockMode ? undefined : { background: '#252627' }}
+                style={dockMode ? undefined : { background: 'var(--bg-primary)' }}
             >
                 <motion.div
                     className={dockMode ? "w-full h-full flex items-center justify-center" : ""}
@@ -132,8 +145,8 @@ export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode })
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0, opacity: 0 }}
-                            className="absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-[#252627] flex items-center justify-center"
-                            style={{ background: '#BB0A21' }}
+                            className="absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-[var(--bg-primary)] flex items-center justify-center"
+                            style={{ background: 'var(--danger)' }}
                         >
                             <span className="text-[10px] font-black text-white">{count > 9 ? '9+' : count}</span>
                         </motion.div>
@@ -154,11 +167,23 @@ export const NotificationBell: React.FC<{ dockMode?: boolean }> = ({ dockMode })
                         <div className="bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
                             <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
                                 <span className="text-[11px] font-black tracking-[0.2em] text-white/50 uppercase">Notificações</span>
-                                {count > 0 && (
-                                    <span className="text-[10px] font-black text-[#BB0A21] bg-[#BB0A21]/10 border border-[#BB0A21]/20 rounded-full px-2 py-0.5">
-                                        {count} nova{count > 1 ? 's' : ''}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {count > 0 && (
+                                        <span className="text-[10px] font-black text-[var(--danger)] bg-[var(--danger-soft)] border border-[var(--danger)] rounded-full px-2 py-0.5">
+                                            {count} nova{count > 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                    {count > 0 && (
+                                        <button
+                                            onClick={handleMarkAllRead}
+                                            disabled={markingRead}
+                                            className="flex items-center gap-1.5 text-[9px] font-black text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full px-2.5 py-1 transition-all disabled:opacity-40 uppercase tracking-wider"
+                                        >
+                                            <CheckCheck size={12} />
+                                            Lido
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="overflow-y-auto" style={{ maxHeight: '380px' }}>

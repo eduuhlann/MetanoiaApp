@@ -10,8 +10,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { translateAuthError } from '../services/authErrors';
 import MetanoiaStory from '../assets/MetanoiaStory.png';
 
-function AuthParticles() {
+function InteractiveGrid() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const mouseRef = useRef({ x: -1000, y: -1000 });
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -20,55 +21,122 @@ function AuthParticles() {
         if (!ctx) return;
 
         let animId: number;
-        let particles: { x: number; y: number; size: number; vx: number; vy: number; opacity: number }[] = [];
+        const gridSize = 50;
+        const influenceRadius = 200;
+        const maxBend = 60;
 
         const resize = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         };
 
-        const init = () => {
-            particles = [];
-            const count = Math.floor((canvas.width * canvas.height) / 8000);
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 2 + 0.5,
-                    vx: (Math.random() - 0.5) * 0.4,
-                    vy: (Math.random() - 0.5) * 0.4,
-                    opacity: Math.random() * 0.6 + 0.2,
-                });
-            }
+        const handleMouseMove = (e: MouseEvent) => {
+            mouseRef.current = { x: e.clientX, y: e.clientY };
+        };
+
+        const handleMouseLeave = () => {
+            mouseRef.current = { x: -1000, y: -1000 };
+        };
+
+        const bendFactor = (px: number, py: number, mx: number, my: number) => {
+            const dx = px - mx;
+            const dy = py - my;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > influenceRadius || dist < 1) return 0;
+            return Math.pow(1 - dist / influenceRadius, 3);
+        };
+
+        const displacedPos = (px: number, py: number, mx: number, my: number) => {
+            const dx = px - mx;
+            const dy = py - my;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > influenceRadius || dist < 1) return { x: px, y: py };
+            const t = Math.pow(1 - dist / influenceRadius, 3);
+            const angle = Math.atan2(dy, dx);
+            return {
+                x: px + Math.cos(angle) * t * maxBend,
+                y: py + Math.sin(angle) * t * maxBend,
+            };
         };
 
         const draw = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (const p of particles) {
-                ctx.globalAlpha = p.opacity;
-                ctx.fillStyle = '#D3D4D9';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-                p.x += p.vx;
-                p.y += p.vy;
-                if (p.x < 0) p.x = canvas.width;
-                if (p.x > canvas.width) p.x = 0;
-                if (p.y < 0) p.y = canvas.height;
-                if (p.y > canvas.height) p.y = 0;
+            const { width, height } = canvas;
+            const mx = mouseRef.current.x;
+            const my = mouseRef.current.y;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const cols = Math.ceil(width / gridSize) + 1;
+            const rows = Math.ceil(height / gridSize) + 1;
+
+            const pts: { x: number; y: number }[][] = [];
+            for (let r = 0; r <= rows; r++) {
+                pts[r] = [];
+                for (let c = 0; c <= cols; c++) {
+                    pts[r][c] = displacedPos(c * gridSize, r * gridSize, mx, my);
+                }
             }
+
+            ctx.lineWidth = 0.5;
+
+            for (let r = 0; r <= rows; r++) {
+                for (let c = 0; c <= cols; c++) {
+                    const p = pts[r][c];
+                    const bf = bendFactor(p.x, p.y, mx, my);
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + bf * 0.85})`;
+
+                    if (c < cols) {
+                        const next = pts[r][c + 1];
+                        const midX = (p.x + next.x) / 2;
+                        const midY = (p.y + next.y) / 2;
+                        const cm = bendFactor(midX, midY, mx, my);
+                        const cdx = midX - mx;
+                        const cdy = midY - my;
+                        const cd = Math.sqrt(cdx * cdx + cdy * cdy);
+                        const ca = Math.atan2(cdy, cdx);
+                        const cpX = midX + Math.cos(ca) * cm * maxBend * 0.5;
+                        const cpY = midY + Math.sin(ca) * cm * maxBend * 0.5;
+
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.quadraticCurveTo(cpX, cpY, next.x, next.y);
+                        ctx.stroke();
+                    }
+
+                    if (r < rows) {
+                        const below = pts[r + 1][c];
+                        const midX = (p.x + below.x) / 2;
+                        const midY = (p.y + below.y) / 2;
+                        const cm = bendFactor(midX, midY, mx, my);
+                        const cdx = midX - mx;
+                        const cdy = midY - my;
+                        const cd = Math.sqrt(cdx * cdx + cdy * cdy);
+                        const ca = Math.atan2(cdy, cdx);
+                        const cpX = midX + Math.cos(ca) * cm * maxBend * 0.5;
+                        const cpY = midY + Math.sin(ca) * cm * maxBend * 0.5;
+
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.quadraticCurveTo(cpX, cpY, below.x, below.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
             animId = requestAnimationFrame(draw);
         };
 
-        const handleResize = () => { resize(); init(); };
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseleave', handleMouseLeave);
         resize();
-        init();
         draw();
 
         return () => {
             cancelAnimationFrame(animId);
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('resize', resize);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseleave', handleMouseLeave);
         };
     }, []);
 
@@ -76,7 +144,7 @@ function AuthParticles() {
         <canvas
             ref={canvasRef}
             className="fixed inset-0 w-full h-full pointer-events-none z-0"
-            style={{ background: '#252627' }}
+            style={{ background: 'var(--bg-primary)' }}
         />
     );
 }
@@ -120,8 +188,8 @@ export default function Auth() {
     };
 
     return (
-        <div className="h-screen text-white relative overflow-hidden font-sans selection:bg-[#4B88A2]/30 selection:text-white" style={{ background: '#252627' }}>
-            <AuthParticles />
+        <div className="h-screen text-white relative overflow-hidden font-sans selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
+            <InteractiveGrid />
 
             <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-center lg:gap-20 p-4 md:p-6 overflow-hidden">
                 <div className="hidden lg:flex flex-1 items-center justify-center lg:justify-center order-2 lg:order-1" style={{ perspective: 1200 }}>
@@ -138,18 +206,11 @@ export default function Auth() {
                         className="relative"
                     >
                         <motion.div
-                            animate={{ opacity: [0.15, 0.45, 0.15], scale: [0.95, 1.15, 0.95] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -inset-10 blur-[80px] rounded-[50%] z-0"
-                            style={{ pointerEvents: 'none', background: 'rgba(75, 136, 162, 0.15)' }}
-                        />
-                        
-                        <motion.div
                             animate={{ y: [0, -15, 0] }}
                             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                         >
                             <div className="w-full h-auto relative z-10 transition-all cursor-pointer flex items-center justify-center">
-                                <img src={MetanoiaStory} alt="Metanoia" className="w-[1100px] h-auto object-contain drop-shadow-[0_0_30px_rgba(75,136,162,0.2)]" />
+                                <img src={MetanoiaStory} alt="Metanoia" className="w-[1100px] h-auto object-contain" />
                             </div>
                         </motion.div>
                     </motion.div>
@@ -162,16 +223,16 @@ export default function Auth() {
                         transition={{ delay: 0.2 }}
                         className="w-full max-w-xl"
                     >
-                        <div className="backdrop-blur-3xl rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-8 md:p-14 shadow-2xl shadow-black/50 text-center" style={{ background: 'rgba(37, 38, 39, 0.8)', border: '1px solid rgba(75, 136, 162, 0.2)' }}>
+                        <div className="backdrop-blur-3xl rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-8 md:p-14 shadow-2xl shadow-black/50 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--accent-soft)' }}>
                             <div className="mb-10">
                                 <div className="lg:hidden mb-8">
-                                    <img src={MetanoiaStory} alt="Metanoia" className="w-full max-w-[280px] h-auto object-contain mx-auto drop-shadow-[0_0_20px_rgba(75,136,162,0.2)]" />
+                                    <img src={MetanoiaStory} alt="Metanoia" className="w-full max-w-[280px] h-auto object-contain mx-auto" />
                                 </div>
-                                <h1 className="text-4xl md:text-5xl lg:text-6xl font-outfit font-extrabold tracking-[-0.05em] mb-4 leading-[0.9] uppercase group" style={{ color: '#FFF9FB' }}>
+                                <h1 className="text-4xl md:text-5xl lg:text-6xl font-outfit font-extrabold tracking-[-0.05em] mb-4 leading-[0.9] uppercase group" style={{ color: 'var(--text-primary)' }}>
                                     BEM-VINDO AO <br/>
-                                    <span style={{ color: '#4B88A2' }} className="group-hover:opacity-80 transition-opacity duration-700">MetanoiaApp</span>
+                                    <span style={{ color: 'var(--accent-solid)' }} className="group-hover:opacity-80 transition-opacity duration-700">MetanoiaApp</span>
                                 </h1>
-                                <p className="text-[10px] sm:text-[9px] font-bold tracking-[0.5em] uppercase" style={{ color: '#D3D4D9' }}>
+                                <p className="text-[10px] sm:text-[9px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>
                                     Escolha como se conectar
                                 </p>
                             </div>
@@ -180,8 +241,8 @@ export default function Auth() {
                                 <button
                                     onClick={() => handleOAuthLogin('google')}
                                     disabled={loading}
-                                    className="w-full py-6 rounded-2xl font-outfit font-black text-[12px] tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 uppercase group relative overflow-hidden text-white"
-                                    style={{ background: '#BB0A21', boxShadow: '0 20px 50px -20px rgba(187, 10, 33, 0.5)' }}
+                                    className="w-full py-6 rounded-2xl font-outfit font-black text-[12px] tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 uppercase group relative overflow-hidden"
+                                    style={{ background: 'var(--accent-solid)', boxShadow: '0 20px 50px -20px var(--danger)', color: 'var(--text-on-accent)' }}
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:scale-110 transition-transform">
@@ -197,8 +258,8 @@ export default function Auth() {
                                 <button
                                     onClick={() => handleOAuthLogin('discord')}
                                     disabled={loading}
-                                    className="w-full text-white py-6 rounded-2xl font-outfit font-black text-[12px] tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 uppercase group relative overflow-hidden"
-                                    style={{ background: '#4B88A2', boxShadow: '0 20px 50px -20px rgba(75, 136, 162, 0.5)' }}
+                                    className="w-full py-6 rounded-2xl font-outfit font-black text-[12px] tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 uppercase group relative overflow-hidden"
+                                    style={{ background: 'var(--accent-solid)', boxShadow: '0 20px 50px -20px var(--accent-hover)', color: 'var(--text-on-accent)' }}
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-discord group-hover:scale-110 transition-transform" viewBox="0 0 16 16">
@@ -214,24 +275,24 @@ export default function Auth() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     className="mt-8 flex items-center justify-center gap-3 p-4 rounded-2xl text-[10px] font-black tracking-widest uppercase"
-                                    style={{ background: 'rgba(187, 10, 33, 0.1)', border: '1px solid rgba(187, 10, 33, 0.2)', color: '#BB0A21' }}
+                                    style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger-soft)', color: 'var(--accent-solid)' }}
                                 >
                                     <AlertCircle size={16} />
                                     {error}
                                 </motion.div>
                             )}
 
-                            <div className="mt-12 pt-8" style={{ borderTop: '1px solid rgba(75, 136, 162, 0.1)' }}>
-                                <p className="text-[10px] sm:text-[9px] font-black tracking-[0.3em] uppercase leading-relaxed" style={{ color: 'rgba(211, 212, 217, 0.3)' }}>
+                            <div className="mt-12 pt-8" style={{ borderTop: '1px solid var(--border)' }}>
+                                <p className="text-[10px] sm:text-[9px] font-black tracking-[0.3em] uppercase leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                                     Acesso seguro via Supabase Auth.<br/>
                                     Seus dados estão protegidos.
                                 </p>
                             </div>
                         </div>
 
-                        <p className="mt-12 text-center text-[10px] sm:text-[9px] font-black tracking-[0.4em] leading-relaxed uppercase" style={{ color: 'rgba(211, 212, 217, 0.2)' }}>
+                        <p className="mt-12 text-center text-[10px] sm:text-[9px] font-black tracking-[0.4em] leading-relaxed uppercase" style={{ color: 'var(--text-dim)' }}>
                             AO CONTINUAR VOCÊ CONCORDA COM OS<br />
-                            <span className="underline underline-offset-8 text-[9px] sm:text-[8px]" style={{ color: 'rgba(211, 212, 217, 0.3)', textDecorationColor: 'rgba(75, 136, 162, 0.2)' }}>
+                            <span className="underline underline-offset-8 text-[9px] sm:text-[8px]" style={{ color: 'var(--text-muted)', textDecorationColor: 'var(--accent-soft)' }}>
                                 TERMOS E PRIVACIDADE
                             </span>
                         </p>

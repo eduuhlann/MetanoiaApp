@@ -2,30 +2,28 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../contexts/ProfileContext';
-import { ChevronRight, Users, Calendar, BookOpen, Shield, UserCheck } from 'lucide-react';
+import { ChevronRight, Users, Calendar, BookOpen } from 'lucide-react';
 import MetanoiaStory from '../assets/MetanoiaStory.png';
 
-const STEPS = [0, 1, 2];
+const STEPS = [0, 1];
 
 export default function OnboardingFlow() {
     const navigate = useNavigate();
     const { updateProfile } = useProfile();
     const [step, setStep] = useState(0);
-    const [role, setRole] = useState<'leader' | 'member' | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const handleNext = () => {
-        if (step < 2) {
+        if (step < 1) {
             setStep(step + 1);
         }
     };
 
     const handleComplete = async () => {
-        if (!role) return;
         setIsSaving(true);
         try {
             await updateProfile({
-                role,
+                role: 'member',
                 onboarding_completed: true,
             });
             navigate('/dashboard', { replace: true });
@@ -52,9 +50,9 @@ export default function OnboardingFlow() {
     };
 
     return (
-        <div className="h-screen flex items-center justify-center overflow-hidden" style={{ background: '#252627' }}>
+        <div className="h-screen flex items-center justify-center overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
             <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(75, 136, 162, 0.06) 0%, transparent 70%)' }} />
+                <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 40%, var(--bg-muted) 0%, transparent 70%)' }} />
             </div>
 
             <div className="relative z-10 w-full max-w-lg mx-auto px-6">
@@ -65,7 +63,7 @@ export default function OnboardingFlow() {
                             className="h-1 rounded-full transition-all duration-500"
                             style={{
                                 width: s === step ? '40px' : '12px',
-                                background: s <= step ? '#4B88A2' : 'rgba(211, 212, 217, 0.15)',
+                                background: s <= step ? 'var(--accent-solid)' : 'var(--text-muted)',
                             }}
                         />
                     ))}
@@ -86,7 +84,7 @@ export default function OnboardingFlow() {
                             >
                                 <motion.h1
                                     className="text-5xl md:text-6xl font-outfit font-extrabold tracking-tight mb-4"
-                                    style={{ color: '#FFF9FB' }}
+                                    style={{ color: 'var(--text-primary)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.3 }}
@@ -95,7 +93,7 @@ export default function OnboardingFlow() {
                                 </motion.h1>
                                 <motion.h1
                                     className="text-6xl md:text-7xl font-outfit font-extrabold tracking-tight mb-8"
-                                    style={{ color: '#4B88A2' }}
+                                    style={{ color: 'var(--accent-solid)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.4 }}
@@ -104,7 +102,7 @@ export default function OnboardingFlow() {
                                 </motion.h1>
                                 <motion.p
                                     className="text-base leading-relaxed max-w-sm"
-                                    style={{ color: '#D3D4D9' }}
+                                    style={{ color: 'var(--text-secondary)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.5 }}
@@ -127,7 +125,7 @@ export default function OnboardingFlow() {
                             >
                                 <motion.h2
                                     className="text-3xl font-outfit font-extrabold tracking-tight mb-2 text-center"
-                                    style={{ color: '#FFF9FB' }}
+                                    style={{ color: 'var(--text-primary)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.2 }}
@@ -136,7 +134,7 @@ export default function OnboardingFlow() {
                                 </motion.h2>
                                 <motion.p
                                     className="text-xs text-center mb-10"
-                                    style={{ color: '#D3D4D9' }}
+                                    style={{ color: 'var(--text-secondary)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.3 }}
@@ -165,94 +163,20 @@ export default function OnboardingFlow() {
                                         <motion.div
                                             key={i}
                                             className="flex items-start gap-4 p-5 rounded-2xl"
-                                            style={{ background: 'rgba(75, 136, 162, 0.08)', border: '1px solid rgba(75, 136, 162, 0.15)' }}
+                                            style={{ background: 'var(--bg-input)', border: '1px solid var(--border-strong)' }}
                                             initial={{ x: 40, opacity: 0 }}
                                             animate={{ x: 0, opacity: 1 }}
                                             transition={{ delay: 0.3 + i * 0.1 }}
                                         >
-                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(75, 136, 162, 0.2)' }}>
-                                                <item.icon size={20} style={{ color: '#4B88A2' }} />
+                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)' }}>
+                                                <item.icon size={20} style={{ color: 'var(--accent-solid)' }} />
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-sm mb-1" style={{ color: '#FFF9FB' }}>{item.title}</h4>
-                                                <p className="text-xs" style={{ color: '#D3D4D9' }}>{item.desc}</p>
+                                                <h4 className="font-bold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{item.title}</h4>
+                                                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>
                                             </div>
                                         </motion.div>
                                     ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {step === 2 && (
-                            <motion.div
-                                key="step2"
-                                custom={1}
-                                variants={slideVariants}
-                                initial="enter"
-                                animate="center"
-                                exit="exit"
-                                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                                className="flex flex-col items-center"
-                            >
-                                <motion.h2
-                                    className="text-3xl font-outfit font-extrabold tracking-tight mb-2 text-center"
-                                    style={{ color: '#FFF9FB' }}
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    transition={{ delay: 0.2 }}
-                                >
-                                    Você é líder ou liderado?
-                                </motion.h2>
-                                <motion.p
-                                    className="text-xs text-center mb-10"
-                                    style={{ color: '#D3D4D9' }}
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    transition={{ delay: 0.3 }}
-                                >
-                                    Isso define suas permissões no app
-                                </motion.p>
-
-                                <div className="grid grid-cols-2 gap-4 w-full">
-                                    <motion.button
-                                        onClick={() => setRole('leader')}
-                                        className="flex flex-col items-center gap-4 p-8 rounded-3xl transition-all"
-                                        style={{
-                                            background: role === 'leader' ? 'rgba(75, 136, 162, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                            border: role === 'leader' ? '2px solid #4B88A2' : '2px solid rgba(255, 255, 255, 0.08)',
-                                        }}
-                                        initial={{ y: 30, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        transition={{ delay: 0.3 }}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: role === 'leader' ? 'rgba(75, 136, 162, 0.3)' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            <Shield size={24} style={{ color: role === 'leader' ? '#4B88A2' : '#D3D4D9' }} />
-                                        </div>
-                                        <span className="font-bold text-sm" style={{ color: role === 'leader' ? '#FFF9FB' : '#D3D4D9' }}>Líder</span>
-                                        <span className="text-[10px] text-center" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>Posta e gerencia eventos</span>
-                                    </motion.button>
-
-                                    <motion.button
-                                        onClick={() => setRole('member')}
-                                        className="flex flex-col items-center gap-4 p-8 rounded-3xl transition-all"
-                                        style={{
-                                            background: role === 'member' ? 'rgba(75, 136, 162, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                            border: role === 'member' ? '2px solid #4B88A2' : '2px solid rgba(255, 255, 255, 0.08)',
-                                        }}
-                                        initial={{ y: 30, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        transition={{ delay: 0.4 }}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: role === 'member' ? 'rgba(75, 136, 162, 0.3)' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            <UserCheck size={24} style={{ color: role === 'member' ? '#4B88A2' : '#D3D4D9' }} />
-                                        </div>
-                                        <span className="font-bold text-sm" style={{ color: role === 'member' ? '#FFF9FB' : '#D3D4D9' }}>Liderado</span>
-                                        <span className="text-[10px] text-center" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>Acompanha e participa</span>
-                                    </motion.button>
                                 </div>
                             </motion.div>
                         )}
@@ -260,11 +184,11 @@ export default function OnboardingFlow() {
                 </div>
 
                 <div className="mt-12 flex justify-center">
-                    {step < 2 ? (
+                    {step < 1 ? (
                         <motion.button
                             onClick={handleNext}
-                            className="flex items-center gap-3 px-10 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white transition-all"
-                            style={{ background: '#BB0A21', boxShadow: '0 10px 30px -10px rgba(187, 10, 33, 0.5)' }}
+                            className="flex items-center gap-3 px-10 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-[var(--text-on-accent)] transition-all"
+                            style={{ background: 'var(--accent-solid)', boxShadow: '0 10px 30px -10px rgba(255, 255, 255, 0.15)' }}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
                         >
@@ -274,11 +198,11 @@ export default function OnboardingFlow() {
                     ) : (
                         <motion.button
                             onClick={handleComplete}
-                            disabled={!role || isSaving}
-                            className="flex items-center gap-3 px-10 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
-                            style={{ background: '#BB0A21', boxShadow: '0 10px 30px -10px rgba(187, 10, 33, 0.5)' }}
-                            whileHover={role ? { scale: 1.03 } : {}}
-                            whileTap={role ? { scale: 0.97 } : {}}
+                            disabled={isSaving}
+                            className="flex items-center gap-3 px-10 py-4 rounded-2xl font-bold text-sm tracking-wider uppercase text-[var(--text-on-accent)] transition-all disabled:opacity-30 disabled:pointer-events-none"
+                            style={{ background: 'var(--accent-solid)', boxShadow: '0 10px 30px -10px rgba(255, 255, 255, 0.15)' }}
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
                         >
                             {isSaving ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

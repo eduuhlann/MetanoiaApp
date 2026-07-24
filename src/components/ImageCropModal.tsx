@@ -67,7 +67,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-[#0f0f0f] backdrop-blur-md"
+            className="absolute inset-0 bg-[var(--surface-3)] backdrop-blur-md"
           />
           
           <motion.div
@@ -77,12 +77,12 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
             className="relative w-full h-full flex flex-col overflow-hidden"
           >
             <div className="px-8 py-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold tracking-tight text-[#f1f1f1] font-sans">
+              <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)] font-sans">
                 {title}
               </h2>
             </div>
 
-            <div className="relative flex-1 bg-[#0f0f0f] flex items-center justify-center p-4 md:p-12">
+            <div className="relative flex-1 bg-[var(--surface-3)] flex items-center justify-center p-4 md:p-12">
               <div className="relative w-full max-w-5xl border border-white/5 shadow-2xl overflow-hidden bg-black/40" style={{ aspectRatio: `${aspect}` }}>
                 <Cropper
                   image={image}
@@ -95,7 +95,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                   onZoomChange={onZoomChange}
                   showGrid={false}
                   classes={{
-                      containerClassName: "bg-[#0f0f0f]",
+                      containerClassName: "bg-[var(--surface-3)]",
                       mediaClassName: "max-w-none",
                   }}
                 />
@@ -104,14 +104,14 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                   <div className="absolute inset-0 pointer-events-none z-10">
                      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[60.3%] border-x border-sky-400/50 bg-sky-400/5 relative group">
                         <div className="absolute top-2 left-2">
-                           <span className="bg-[#212121]/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold text-white/90 whitespace-nowrap">
+                           <span className="bg-[var(--surface-5)]/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold text-white/90 whitespace-nowrap">
                                Visível em todos os dispositivos
                            </span>
                         </div>
                      </div>
 
                      <div className="absolute top-2 left-2">
-                        <span className="bg-[#212121]/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold text-white/90">
+                        <span className="bg-[var(--surface-5)]/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold text-white/90">
                             Visível em computadores
                         </span>
                      </div>
@@ -127,7 +127,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
               </div>
             </div>
 
-            <div className="px-5 sm:px-8 py-6 sm:py-8 bg-[#0f0f0f] flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+            <div className="px-5 sm:px-8 py-6 sm:py-8 bg-[var(--surface-3)] flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
               <div className="flex items-center gap-4 sm:gap-6 flex-1 max-w-full md:max-w-xs">
                 <div className="flex items-center gap-4 flex-1">
                   <ZoomOut size={16} className="text-white/40" />
@@ -162,7 +162,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
-                  className="px-8 py-2.5 bg-[#212121] hover:bg-[#333333] text-white rounded-full font-bold text-sm transition-all"
+                  className="px-8 py-2.5 bg-[var(--surface-5)] hover:bg-[var(--surface-6)] text-white rounded-full font-bold text-sm transition-all"
                 >
                   Cancelar
                 </button>

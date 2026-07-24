@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ArrowLeft,
@@ -27,13 +27,23 @@ import {
     Trash2,
     Loader2,
     LogOut,
-    MessageSquarePlus
+    MessageSquarePlus,
+    Calendar,
+    Trophy,
+    History,
+    ChevronDown,
+    ChevronUp,
+    Flame,
+    Award,
+    Pencil,
+    Copy
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { discipleshipService, DiscipleshipTask, DiscipleshipNote } from '../services/features/discipleshipService';
 import { statsService, BibleStats } from '../services/features/statsService';
+import { STATIC_BOOKS } from '../services/bible/staticBibleData';
 import PageTransition from '../components/PageTransition';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -61,6 +71,9 @@ const Discipleship: React.FC = () => {
     const [isGroupMembersModalOpen, setIsGroupMembersModalOpen] = useState(false);
     const [selectedMemberStats, setSelectedMemberStats] = useState<{ userId: string, stats: BibleStats | null, activity: any[] } | null>(null);
     const [challengeData, setChallengeData] = useState({ book: 'Gênesis', start: 1, end: 1 });
+    const [challengeDeadline, setChallengeDeadline] = useState('');
+    const [challengeBookSearch, setChallengeBookSearch] = useState('');
+    const [challengeBookExpanded, setChallengeBookExpanded] = useState<'VT' | 'NT' | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void | Promise<void> }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
     const [alertBanner, setAlertBanner] = useState<{ isOpen: boolean, message: string, type: 'error' | 'success' }>({ isOpen: false, message: '', type: 'error' });
     const [isSending, setIsSending] = useState(false);
@@ -77,6 +90,8 @@ const Discipleship: React.FC = () => {
     const [editingContent, setEditingContent] = useState('');
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
     const [typingUsers, setTypingUsers] = useState<{ id: string, name: string }[]>([]);
+    const [contextMenuNoteId, setContextMenuNoteId] = useState<string | null>(null);
+    const [copySuccess, setCopySuccess] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +124,13 @@ const Discipleship: React.FC = () => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [notes]);
+
+    useEffect(() => {
+        if (!contextMenuNoteId) return;
+        const handleClick = () => setContextMenuNoteId(null);
+        document.addEventListener('click', handleClick);
+        return () => document.removeEventListener('click', handleClick);
+    }, [contextMenuNoteId]);
 
     const getProfile = (p: any) => {
         if (!p) return null;
@@ -335,42 +357,59 @@ const Discipleship: React.FC = () => {
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'discipleship_notes'
                 },
                 async (payload) => {
-                    const newNote = payload.new as DiscipleshipNote;
                     const current = selectedConnectionRef.current;
-                    
-                    const isForSelected = !!(current && (
-                        (newNote.group_id && current.id === newNote.group_id) ||
-                        (!newNote.group_id && current.type !== 'group' && (
-                            (newNote.leader_id === current.leader_id && newNote.disciple_id === current.disciple_id) ||
-                            (newNote.leader_id === current.disciple_id && newNote.disciple_id === current.leader_id)
-                        ))
-                    ));
 
-                    if (isForSelected) {
-                        setNotes(prev => {
-                            if (prev.some(n => n.id === newNote.id)) return prev;
-                            return [...prev, newNote];
-                        });
-                        discipleshipService.markNotesAsRead(newNote.leader_id, newNote.disciple_id, user.id, newNote.group_id);
-                    } else {
-                        const isPrivateForUser = newNote.leader_id === user.id || newNote.disciple_id === user.id;
-                        const userGroups = connectionsRef.current.filter(c => c.type === 'group');
-                        const belongsToUserGroup = newNote.group_id && userGroups.some(c => c.id === newNote.group_id);
+                    if (payload.eventType === 'INSERT') {
+                        const newNote = payload.new as DiscipleshipNote;
+                        
+                        const isForSelected = !!(current && (
+                            (newNote.group_id && current.id === newNote.group_id) ||
+                            (!newNote.group_id && current.type !== 'group' && (
+                                (newNote.leader_id === current.leader_id && newNote.disciple_id === current.disciple_id) ||
+                                (newNote.leader_id === current.disciple_id && newNote.disciple_id === current.leader_id)
+                            ))
+                        ));
 
-                        if (isPrivateForUser || belongsToUserGroup) {
-                            const key = newNote.group_id || (newNote.leader_id === user.id ? newNote.disciple_id : newNote.leader_id);
-                            if (key) {
-                                setUnreadCounts(prev => ({
-                                    ...prev,
-                                    [key]: (prev[key] || 0) + 1
-                                }));
+                        if (isForSelected) {
+                            setNotes(prev => {
+                                if (prev.some(n => n.id === newNote.id)) return prev;
+                                return [...prev, newNote];
+                            });
+                            discipleshipService.markNotesAsRead(newNote.leader_id, newNote.disciple_id, user.id, newNote.group_id);
+                        } else {
+                            const isPrivateForUser = newNote.leader_id === user.id || newNote.disciple_id === user.id;
+                            const userGroups = connectionsRef.current.filter(c => c.type === 'group');
+                            const belongsToUserGroup = newNote.group_id && userGroups.some(c => c.id === newNote.group_id);
+
+                            if (isPrivateForUser || belongsToUserGroup) {
+                                const key = newNote.group_id || (newNote.leader_id === user.id ? newNote.disciple_id : newNote.leader_id);
+                                if (key) {
+                                    setUnreadCounts(prev => ({
+                                        ...prev,
+                                        [key]: (prev[key] || 0) + 1
+                                    }));
+                                }
                             }
                         }
+                    } else if (payload.eventType === 'UPDATE') {
+                        const updatedNote = payload.new as DiscipleshipNote;
+                        if (current && (
+                            (updatedNote.group_id && current.id === updatedNote.group_id) ||
+                            (!updatedNote.group_id && current.type !== 'group' && (
+                                (updatedNote.leader_id === current.leader_id && updatedNote.disciple_id === current.disciple_id) ||
+                                (updatedNote.leader_id === current.disciple_id && updatedNote.disciple_id === current.leader_id)
+                            ))
+                        )) {
+                            setNotes(prev => prev.map(n => n.id === updatedNote.id ? { ...n, ...updatedNote } : n));
+                        }
+                    } else if (payload.eventType === 'DELETE') {
+                        const deletedId = (payload.old as any).id;
+                        setNotes(prev => prev.filter(n => n.id !== deletedId));
                     }
                 }
             )
@@ -502,6 +541,7 @@ const Discipleship: React.FC = () => {
                 book: challengeData.book,
                 start: challengeData.start,
                 end: challengeData.end,
+                deadline: challengeDeadline || null,
                 leaderName: profile?.display_name || profile?.username || 'Líder',
                 participants: []
             })}`;
@@ -514,7 +554,9 @@ const Discipleship: React.FC = () => {
             await discipleshipService.addNote(leaderId, discipleId, user.id, challengeMsg, groupId);
 
             setIsChallengeModalOpen(false);
-            // Reload to show the new note
+            setChallengeDeadline('');
+            setChallengeBookSearch('');
+            setChallengeBookExpanded(null);
             setTimeout(() => {
                 loadChatData();
             }, 300);
@@ -652,6 +694,7 @@ const Discipleship: React.FC = () => {
             await discipleshipService.updateNote(noteId, editingContent);
             setEditingNoteId(null);
             setEditingContent('');
+            setContextMenuNoteId(null);
             loadChatData();
         } catch (error) {
             console.error('Error updating note:', error);
@@ -660,6 +703,7 @@ const Discipleship: React.FC = () => {
     };
 
     const handleDeleteNote = (noteId: string) => {
+        setContextMenuNoteId(null);
         setConfirmModal({
             isOpen: true,
             title: 'Excluir Mensagem',
@@ -674,6 +718,17 @@ const Discipleship: React.FC = () => {
                 }
             }
         });
+    };
+
+    const handleCopyMessage = async (content: string) => {
+        setContextMenuNoteId(null);
+        try {
+            await navigator.clipboard.writeText(content);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch {
+            setAlertBanner({ isOpen: true, message: 'Erro ao copiar mensagem.', type: 'error' });
+        }
     };
 
     const handleLeaveGroup = async () => {
@@ -779,12 +834,12 @@ const Discipleship: React.FC = () => {
 
     return (
         <PageTransition>
-            <div className="h-screen text-white flex flex-col font-sans overflow-hidden" style={{ background: '#252627' }}>
+            <div className="h-screen text-white flex flex-col font-sans overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
                 {/* Modals handled same as before... (Search, Group Creation) */}
                 <AnimatePresence>
                     {isSearchOpen && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: '#1a1a1a' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
                                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                                     <h3 className="text-xl font-bold tracking-tight">
                                         {searchMode === 'group' ? `Convidar para ${selectedConnection?.name}` : 'Chamar no Privado'}
@@ -799,8 +854,8 @@ const Discipleship: React.FC = () => {
                                     <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar pr-2">
                                         {inviteSuccess ? (
                                             <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                                                <div style={{ background: 'rgba(75, 136, 162, 0.15)' }} className="w-16 h-16 rounded-full flex items-center justify-center animate-bounce" >
-                                                    <Check className="w-8 h-8" style={{ color: '#4B88A2' }} />
+                                                <div style={{ background: 'var(--border-strong)' }} className="w-16 h-16 rounded-full flex items-center justify-center animate-bounce" >
+                                                    <Check className="w-8 h-8" style={{ color: 'var(--accent-solid)' }} />
                                                 </div>
                                                 <p className="text-sm font-bold text-white/60">Convite enviado para <span className="text-white">{inviteSuccess}</span>!</p>
                                             </div>
@@ -811,7 +866,7 @@ const Discipleship: React.FC = () => {
                                                         <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden">{r.avatar_url && <img src={r.avatar_url} className="w-full h-full object-cover" />}</div>
                                                         <span className="font-bold text-sm">{r.username}</span>
                                                     </div>
-                                                    <button onClick={() => handleInvite(r)} style={{ background: '#4B88A2', color: '#fff' }} className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
+                                                    <button onClick={() => handleInvite(r)} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
                                                         {searchMode === 'group' ? 'Convidar' : 'Chamar'}
                                                     </button>
                                                 </div>
@@ -827,7 +882,7 @@ const Discipleship: React.FC = () => {
                 <AnimatePresence>
                     {isGroupModalOpen && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: '#1a1a1a' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
                                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                                     <h3 className="text-xl font-bold tracking-tight">Criar Novo Grupo</h3>
                                     <button onClick={() => setIsGroupModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
@@ -837,7 +892,7 @@ const Discipleship: React.FC = () => {
                                         <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Nome do Grupo</label>
                                         <input type="text" autoFocus placeholder="Ex: Discipulado Jovens" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium" />
                                     </div>
-                                    <button onClick={handleCreateGroup} disabled={!newGroupName.trim() || isCreatingGroup} style={{ background: '#4B88A2', color: '#fff' }} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                    <button onClick={handleCreateGroup} disabled={!newGroupName.trim() || isCreatingGroup} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                                         {isCreatingGroup ? (
                                             <>
                                                 <Loader2 className="w-4 h-4 animate-spin" /> CRIANDO...
@@ -849,44 +904,19 @@ const Discipleship: React.FC = () => {
                         </motion.div>
                     )}
                     {isChallengeModalOpen && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: '#1a1a1a' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-white/5 flex items-center justify-between" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                                    <div className="flex items-center gap-3">
-                                        <TrendingUp className="w-6 h-6 text-white/60" />
-                                        <h3 className="text-xl font-bold tracking-tight">Novo Desafio de Leitura</h3>
-                                    </div>
-                                    <button onClick={() => setIsChallengeModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
-                                </div>
-                                <div className="p-6 space-y-6">
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Livro da Bíblia</label>
-                                        <select
-                                            value={challengeData.book}
-                                            onChange={(e) => setChallengeData(prev => ({ ...prev, book: e.target.value }))}
-                                            className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium appearance-none"
-                                        >
-                                            {['Gênesis', 'Êxodo', 'Levítico', 'Números', 'Deuteronômio', 'Josué', 'Juízes', 'Rute', '1 Samuel', '2 Samuel', '1 Reis', '2 Reis', '1 Crônicas', '2 Crônicas', 'Esdras', 'Neemias', 'Ester', 'Jó', 'Salmos', 'Provérbios', 'Eclesiastes', 'Cantares', 'Isaías', 'Jeremias', 'Lamentações', 'Ezequiel', 'Daniel', 'Oseias', 'Joel', 'Amós', 'Obadias', 'Jonas', 'Miqueias', 'Naum', 'Habacuque', 'Sofonias', 'Ageu', 'Zacarias', 'Malaquias', 'Mateus', 'Marcos', 'Lucas', 'João', 'Atos', 'Romanos', '1 Coríntios', '2 Coríntios', 'Gálatas', 'Efésios', 'Filipenses', 'Colossenses', '1 Tessalonicenses', '2 Tessalonicenses', '1 Timóteo', '2 Timóteo', 'Tito', 'Filemom', 'Hebreus', 'Tiago', '1 Pedro', '2 Pedro', '1 João', '2 João', '3 João', 'Judas', 'Apocalipse'].map(b => (
-                                                <option key={b} value={b} className="bg-[#1a1a1a]">{b}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Capítulo Inicial</label>
-                                            <input type="number" min="1" value={challengeData.start} onChange={(e) => setChallengeData(prev => ({ ...prev, start: parseInt(e.target.value) || 1 }))} className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Capítulo Final</label>
-                                            <input type="number" min="1" value={challengeData.end} onChange={(e) => setChallengeData(prev => ({ ...prev, end: parseInt(e.target.value) || 1 }))} className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium" />
-                                        </div>
-                                    </div>
-                                    <button onClick={handleCreateChallenge} style={{ background: '#4B88A2', color: '#fff' }} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/20">
-                                        Lançar Desafio
-                                    </button>
-                                </div>
-                            </motion.div>
-                        </motion.div>
+                        <ChallengeCreationModal
+                            isOpen={isChallengeModalOpen}
+                            onClose={() => setIsChallengeModalOpen(false)}
+                            onCreateChallenge={handleCreateChallenge}
+                            challengeData={challengeData}
+                            setChallengeData={setChallengeData}
+                            deadline={challengeDeadline}
+                            setDeadline={setChallengeDeadline}
+                            bookSearch={challengeBookSearch}
+                            setBookSearch={setChallengeBookSearch}
+                            bookExpanded={challengeBookExpanded}
+                            setBookExpanded={setChallengeBookExpanded}
+                        />
                     )}
                 </AnimatePresence>
 
@@ -894,16 +924,16 @@ const Discipleship: React.FC = () => {
 
 
                     {/* Sidebar */}
-                    <aside className={cn("w-full md:w-[380px] border-r border-white/5 flex flex-col transition-all", view === 'chat' ? 'hidden md:flex' : 'flex')}>
+                    <aside className={cn("w-full md:w-[380px] border-r flex flex-col transition-all", view === 'chat' ? 'hidden md:flex' : 'flex')} style={{ borderColor: 'var(--border)' }}>
                         <header className="p-6 space-y-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <button onClick={() => navigate('/dashboard')} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"><ArrowLeft className="w-5 h-5" /></button>
+                                    <button onClick={() => navigate('/dashboard')} className="p-2.5 rounded-2xl transition-all hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)' }}><ArrowLeft className="w-5 h-5" /></button>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all shadow-xl" title="Novo Chat Privado"><MessageSquarePlus className="w-5 h-5 text-white/60" /></button>
-                                    <button onClick={() => setIsGroupModalOpen(true)} className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all shadow-xl" title="Novo Grupo"><Users className="w-5 h-5 text-white/60" /></button>
-                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} style={{ background: '#4B88A2', color: '#fff' }} className="p-3 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-xl"><Plus className="w-5 h-5" /></button>
+                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} className="p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Chat Privado"><MessageSquarePlus className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+                                    <button onClick={() => setIsGroupModalOpen(true)} className="p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Grupo"><Users className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="p-3 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-xl"><Plus className="w-5 h-5" /></button>
                                 </div>
                             </div>
                         </header>
@@ -911,43 +941,41 @@ const Discipleship: React.FC = () => {
                         <div className="flex-1 overflow-y-auto px-4 space-y-2 custom-scrollbar pb-24">
                             {connections.map(conn => {
                                 const isPending = (conn.status === 'pending') || (conn.member_status === 'pending');
+                                const isSelected = selectedConnection?.id === conn.id;
                                 return (
-                                    <button key={`${conn.type}-${conn.id}`} onClick={() => !isPending && handleSelectConnection(conn)} className={cn("w-full p-4 rounded-[28px] flex items-center gap-4 transition-all group", selectedConnection?.id === conn.id ? "shadow-lg" : "hover:bg-white/5 border border-transparent", isPending && "cursor-default opacity-80")} style={selectedConnection?.id === conn.id ? { background: 'rgba(75, 136, 162, 0.1)', border: '1px solid rgba(75, 136, 162, 0.15)' } : {}}>
-                                        <div className="w-14 h-14 rounded-full bg-white/10 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                                    <button key={`${conn.type}-${conn.id}`} onClick={() => !isPending && handleSelectConnection(conn)} className={cn("w-full p-4 rounded-[28px] flex items-center gap-4 transition-all group", isPending && "cursor-default opacity-80")} style={isSelected ? { background: 'var(--surface-4)', border: '1px solid var(--border-strong)' } : { background: 'transparent', border: '1px solid transparent' }}>
+                                        <div className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden shrink-0 transition-all" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                                             {conn.type === 'group' ? (
-                                                conn.avatar_url ? <img src={conn.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-6 h-6 text-white/40" />
+                                                conn.avatar_url ? <img src={conn.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-6 h-6" style={{ color: 'var(--text-muted)' }} />
                                             ) : conn.profile?.avatar_url ? (
                                                 <img src={conn.profile.avatar_url} className="w-full h-full object-cover" />
                                             ) : (
-                                                <User className="w-6 h-6 text-white/20" />
+                                                <User className="w-6 h-6" style={{ color: 'var(--text-dim)' }} />
                                             )}
                                         </div>
                                         <div className="flex-1 text-left">
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="font-bold text-sm">{conn.type === 'group' ? conn.name : (conn.profile?.display_name || conn.profile?.username || 'Usuário')}</span>
                                                 {conn.type !== 'self' && (
-                                                    <span className={cn(
-                                                        "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
-                                                        conn.type === 'leader' ? "" : "bg-white/5 text-white/20"
-                                                    )} style={conn.type === 'leader' ? { background: 'rgba(75, 136, 162, 0.1)', color: '#4B88A2' } : {}}>
+                                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full" style={conn.type === 'leader' ? { background: 'var(--accent-soft)', color: 'var(--accent-solid)' } : { background: 'var(--bg-card)', color: 'var(--text-dim)' }}>
                                                         {conn.type === 'leader' ? 'Líder' : 'Discípulo'}
                                                     </span>
                                                 )}
                                             </div>
                                             {isPending ? (
                                                 <div className="flex items-center gap-2 mt-2">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, true); }} style={{ background: '#4B88A2', color: '#fff' }} className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Aceitar</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, false); }} className="px-4 py-2 bg-white/10 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Recusar</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, true); }} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Aceitar</button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRespondInvite(conn, false); }} className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all" style={{ background: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}>Recusar</button>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center justify-between gap-2 mt-1">
-                                                    <p className="text-[11px] text-white/40 line-clamp-1 italic">Toque para abrir a conversa...</p>
+                                                    <p className="text-[11px] line-clamp-1 italic" style={{ color: 'var(--text-muted)' }}>Toque para abrir a conversa...</p>
                                                     {(() => {
                                                         const unreadKey = conn.type === 'group' ? conn.id : (conn.leader_id === user?.id ? conn.disciple_id : conn.leader_id);
                                                         const count = unreadCounts[unreadKey] || 0;
                                                         if (count > 0) {
                                                             return (
-                                                                <div style={{ background: '#4B88A2', color: '#fff' }} className="min-w-[18px] h-[18px] text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shrink-0">
+                                                                <div style={{ background: 'var(--accent-solid)', color: '#fff' }} className="min-w-[18px] h-[18px] text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shrink-0">
                                                                     {count}
                                                                 </div>
                                                             );
@@ -964,21 +992,21 @@ const Discipleship: React.FC = () => {
                     </aside>
 
                     {/* Chat Area */}
-                    <main className={cn("flex-1 flex flex-col transition-all relative", view === 'list' ? 'hidden md:flex' : 'flex')} style={{ background: '#252627' }}>
+                    <main className={cn("flex-1 flex flex-col transition-all relative", view === 'list' ? 'hidden md:flex' : 'flex')} style={{ background: 'var(--bg-primary)' }}>
                         {selectedConnection ? (
                             <>
-                                <header className="p-4 md:p-6 border-b border-white/5 flex items-center justify-between bg-black/40 backdrop-blur-md sticky top-0 z-20">
+                                <header className="p-4 md:p-6 border-b flex items-center justify-between backdrop-blur-md sticky top-0 z-20" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
                                     <div className="flex items-center gap-4">
-                                        <button onClick={() => setView('list')} className="md:hidden p-2.5 bg-white/5 rounded-xl"><ArrowLeft className="w-5 h-5" /></button>
+                                        <button onClick={() => setView('list')} className="md:hidden p-2.5 rounded-xl" style={{ background: 'var(--bg-card)' }}><ArrowLeft className="w-5 h-5" /></button>
                                         <div className="flex items-center gap-3">
                                             <div className="relative group/avatar">
-                                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
+                                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                                                     {selectedConnection.type === 'group' ? (
-                                                        selectedConnection.avatar_url ? <img src={selectedConnection.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 md:w-6 md:h-6 text-white/40" />
+                                                        selectedConnection.avatar_url ? <img src={selectedConnection.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-muted)' }} />
                                                     ) : selectedConnection.profile?.avatar_url ? (
                                                         <img src={selectedConnection.profile.avatar_url} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <User className="w-5 h-5 md:w-6 md:h-6 text-white/20" />
+                                                        <User className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-dim)' }} />
                                                     )}
                                                 </div>
                                                 {selectedConnection.type === 'group' && selectedConnection.leader_id === user?.id && (
@@ -1010,8 +1038,8 @@ const Discipleship: React.FC = () => {
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4B88A2' }} />
-                                                            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#4B88A2' }}>Disponível</span>
+                                                            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent-solid)' }} />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--accent-solid)' }}>Disponível</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1025,8 +1053,8 @@ const Discipleship: React.FC = () => {
                                             </button>
                                         )}
                                         {selectedConnection.type === 'group' && selectedConnection.leader_id === user!.id && (
-                                            <button onClick={() => { setSearchMode('group'); setIsSearchOpen(true); }} className="p-2.5 md:p-3 hover:opacity-80 rounded-2xl transition-all border" style={{ background: 'rgba(75, 136, 162, 0.1)', borderColor: 'rgba(75, 136, 162, 0.15)' }}>
-                                                <UserPlus className="w-5 h-5" style={{ color: '#4B88A2' }} />
+                                            <button onClick={() => { setSearchMode('group'); setIsSearchOpen(true); }} className="p-2.5 md:p-3 hover:opacity-80 rounded-2xl transition-all border" style={{ background: 'var(--border)', borderColor: 'var(--border-strong)' }}>
+                                                <UserPlus className="w-5 h-5" style={{ color: 'var(--accent-solid)' }} />
                                             </button>
                                         )}
                                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2.5 md:p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/5">
@@ -1035,7 +1063,7 @@ const Discipleship: React.FC = () => {
 
                                                 <AnimatePresence>
                                                     {isMenuOpen && (
-                                                        <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} style={{ background: '#1a1a1a' }} className="absolute right-0 top-full mt-2 w-48 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
+                                                        <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} style={{ background: 'var(--surface-4)' }} className="absolute right-0 top-full mt-2 w-48 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
                                                             <button onClick={() => { setIsMyChallengesOpen(true); setIsMenuOpen(false); }} className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest border-b border-white/5">
                                                                 <TrendingUp className="w-4 h-4 text-white/40" /> Meus Desafios
                                                             </button>
@@ -1085,35 +1113,64 @@ const Discipleship: React.FC = () => {
                                                     }
                                                 } catch (e) { }
 
+                                                // Auto-complete if 100%
+                                                const shouldAutoComplete = progress === 100;
+                                                const deadline = (target as any).deadline ? new Date((target as any).deadline) : null;
+                                                const isOverdue = deadline && deadline < new Date();
+
                                                 return (
-                                                    <div key={task.id} className="bg-black/40 border border-white/20 rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
+                                                    <div key={task.id} className={cn(
+                                                        "border rounded-2xl p-4 flex flex-col gap-3 shadow-xl transition-all",
+                                                        shouldAutoComplete ? "bg-green-500/5 border-green-500/20" : "bg-black/40 border-white/20"
+                                                    )}>
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                                                                    <TrendingUp className="w-4 h-4 text-white/60" />
+                                                                <div className={cn(
+                                                                    "w-8 h-8 rounded-full flex items-center justify-center",
+                                                                    shouldAutoComplete ? "bg-green-500/20" : "bg-white/20"
+                                                                )}>
+                                                                    {shouldAutoComplete ? (
+                                                                        <CheckCircle className="w-4 h-4 text-green-400" />
+                                                                    ) : (
+                                                                        <TrendingUp className="w-4 h-4 text-white/60" />
+                                                                    )}
                                                                 </div>
                                                                 <div>
-                                                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Desafio Ativo</h4>
+                                                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                                                                        {shouldAutoComplete ? 'Desafio Completo!' : 'Desafio Ativo'}
+                                                                    </h4>
                                                                     <p className="text-sm font-bold">{target.book} {target.start}-{target.end}</p>
                                                                 </div>
                                                             </div>
-                                                            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{progress}% concluído</span>
+                                                            <div className="text-right">
+                                                                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{progress}%</span>
+                                                                {deadline && (
+                                                                    <p className={cn(
+                                                                        "text-[9px] font-bold mt-0.5",
+                                                                        isOverdue ? "text-red-400" : "text-white/30"
+                                                                    )}>
+                                                                        {isOverdue ? 'Prazo expirado' : `Até ${deadline.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`}
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                                                             <motion.div
                                                                 initial={{ width: 0 }}
                                                                 animate={{ width: `${progress}%` }}
-                                                                className="h-full shadow-[0_0_10px_rgba(75,136,162,0.3)]"
-                                                                style={{ background: '#4B88A2' }}
+                                                                className="h-full rounded-full shadow-[0_0_10px_rgba(75,136,162,0.3)]"
+                                                                style={{ background: shouldAutoComplete ? 'var(--accent-solid)' : 'var(--accent-solid)' }}
                                                             />
                                                         </div>
-                                                        {(progress === 100 || selectedConnection.leader_id === user!.id) && (
+                                                        {(shouldAutoComplete || selectedConnection.leader_id === user!.id) && (
                                                             <button
                                                                 onClick={() => discipleshipService.completeTask(task.id).then(() => loadChatData())}
-                                                                style={{ background: '#4B88A2', color: '#fff' }}
-                                                                className="py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                                                                style={{ background: shouldAutoComplete ? 'var(--accent-solid)' : 'var(--accent-solid)', color: '#fff' }}
+                                                                className="py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
                                                             >
-                                                                {progress === 100 ? "Concluir Desafio ✅" : "Marcar como Concluído"}
+                                                                {shouldAutoComplete ? (
+                                                                    <><CheckCircle className="w-3.5 h-3.5" /> Concluir Desafio</>
+                                                                ) : 'Marcar como Concluído'}
                                                             </button>
                                                         )}
                                                     </div>
@@ -1177,7 +1234,7 @@ const Discipleship: React.FC = () => {
                                                             <span className="text-[10px] font-black text-white/30 uppercase tracking-widest px-1">
                                                                 {authorProfile?.username || 'Usuário'}
                                                             </span>
-                                                             <div className={cn("px-5 py-3.5 rounded-[28px] max-w-[85%] md:max-w-md group relative transition-all shadow-xl", isMine ? "font-semibold rounded-tr-none" : "bg-white/5 border border-white/10 text-white rounded-tl-none")} style={isMine ? { background: '#4B88A2', color: '#fff' } : {}}>
+                                                             <div className={cn("px-5 py-3.5 rounded-[28px] max-w-[85%] md:max-w-md group relative transition-all shadow-xl", isMine ? "font-semibold rounded-tr-none" : "bg-white/5 border border-white/10 text-white rounded-tl-none")} style={isMine ? { background: 'var(--accent-solid)', color: '#fff' } : {}}>
                                                                 {editingNoteId === n.id ? (
                                                                     <div className="space-y-3 min-w-[200px]">
                                                                         <textarea
@@ -1185,6 +1242,7 @@ const Discipleship: React.FC = () => {
                                                                             onChange={(e) => setEditingContent(e.target.value)}
                                                                             className="w-full bg-black/10 border-black/10 rounded-xl p-2 text-sm text-black focus:ring-0 focus:border-black/20 font-medium resize-none"
                                                                             autoFocus
+                                                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditNote(n.id); } if (e.key === 'Escape') setEditingNoteId(null); }}
                                                                         />
                                                                         <div className="flex justify-end gap-2">
                                                                             <button onClick={() => setEditingNoteId(null)} className="px-3 py-1.5 bg-black/5 text-black/40 rounded-lg text-[10px] font-black uppercase tracking-widest">Cancelar</button>
@@ -1209,7 +1267,7 @@ const Discipleship: React.FC = () => {
                                                                                 )}
                                                                                 {n.content && (
                                                                                     n.content.startsWith('[CHALLENGE]:') ? (
-                                                                                        <ChallengeMessageCard note={n} isMine={isMine} />
+                                                                                        <ChallengeMessageCard note={n} isMine={isMine} stats={stats} />
                                                                                     ) : (
                                                                                         <p className="text-sm mt-2">{n.content}</p>
                                                                                     )
@@ -1217,37 +1275,95 @@ const Discipleship: React.FC = () => {
                                                                             </div>
                                                                         ) : (
                                                                             n.content.startsWith('[CHALLENGE]:') ? (
-                                                                                <ChallengeMessageCard note={n} isMine={isMine} />
+                                                                                <ChallengeMessageCard note={n} isMine={isMine} stats={stats} />
                                                                             ) : (
                                                                                 <p className="text-sm md:text-[15px] leading-relaxed whitespace-pre-wrap">{n.content}</p>
                                                                             )
                                                                         )}
 
+                                                                        {/* Context Menu Trigger */}
                                                                         {isMine && !n.content.startsWith('[CHALLENGE]:') && (
-                                                                            <div className={cn(
-                                                                                "absolute top-0 opacity-0 group-hover:opacity-100 transition-all flex gap-1",
-                                                                                isMine ? "-left-1 translate-x-[-120%]" : "-right-1 translate-x-full"
-                                                                            )}>
+                                                                            <>
+                                                                                {/* Desktop: hover toolbar */}
+                                                                                <div className={cn(
+                                                                                    "absolute top-0 opacity-0 group-hover:opacity-100 transition-all hidden md:flex gap-1 z-10",
+                                                                                    isMine ? "-left-1 translate-x-[-120%]" : "-right-1 translate-x-full"
+                                                                                )}>
+                                                                                    <button
+                                                                                        onClick={(e) => { e.stopPropagation(); setEditingNoteId(n.id); setEditingContent(n.content); }}
+                                                                                        className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/40 hover:text-white transition-all shadow-sm backdrop-blur-md border border-white/5"
+                                                                                        title="Editar"
+                                                                                    >
+                                                                                        <Pencil className="w-3.5 h-3.5" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteNote(n.id); }}
+                                                                                        className="p-1.5 bg-red-500/5 hover:bg-red-500/20 rounded-lg text-red-500/40 hover:text-red-500 transition-all shadow-sm backdrop-blur-md border border-red-500/10"
+                                                                                        title="Excluir"
+                                                                                    >
+                                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={(e) => { e.stopPropagation(); handleCopyMessage(n.content); }}
+                                                                                        className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/40 hover:text-white transition-all shadow-sm backdrop-blur-md border border-white/5"
+                                                                                        title="Copiar"
+                                                                                    >
+                                                                                        <Copy className="w-3.5 h-3.5" />
+                                                                                    </button>
+                                                                                </div>
+                                                                                {/* Mobile: tap-to-open menu */}
                                                                                 <button
-                                                                                    onClick={() => { setEditingNoteId(n.id); setEditingContent(n.content); }}
-                                                                                    className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/40 hover:text-white transition-all shadow-sm backdrop-blur-md border border-white/5"
-                                                                                    title="Editar"
+                                                                                    onClick={(e) => { e.stopPropagation(); setContextMenuNoteId(contextMenuNoteId === n.id ? null : n.id); }}
+                                                                                    className={cn(
+                                                                                        "md:hidden absolute -right-2 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all shadow-sm border z-10",
+                                                                                        contextMenuNoteId === n.id
+                                                                                            ? "bg-white/20 border-white/30 text-white"
+                                                                                            : "bg-white/5 border-white/10 text-white/30 opacity-0 group-hover:opacity-100"
+                                                                                    )}
                                                                                 >
-                                                                                    <MessageSquarePlus className="w-3.5 h-3.5" />
+                                                                                    <MoreVertical className="w-3 h-3" />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+
+                                                                        {/* Floating Context Menu (mobile tap) */}
+                                                                        {contextMenuNoteId === n.id && isMine && !n.content.startsWith('[CHALLENGE]:') && (
+                                                                            <div
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                className="absolute -top-14 left-1/2 -translate-x-1/2 flex gap-1 bg-[var(--surface-4)] border border-white/10 rounded-2xl p-1.5 shadow-2xl z-50 backdrop-blur-xl"
+                                                                            >
+                                                                                <button
+                                                                                    onClick={() => { setEditingNoteId(n.id); setEditingContent(n.content); setContextMenuNoteId(null); }}
+                                                                                    className="flex items-center gap-1.5 px-3 py-2 hover:bg-white/10 rounded-xl transition-colors"
+                                                                                >
+                                                                                    <Pencil className="w-3.5 h-3.5 text-white/60" />
+                                                                                    <span className="text-[10px] font-bold text-white/60">Editar</span>
                                                                                 </button>
                                                                                 <button
                                                                                     onClick={() => handleDeleteNote(n.id)}
-                                                                                    className="p-1.5 bg-red-500/5 hover:bg-red-500/20 rounded-lg text-red-500/40 hover:text-red-500 transition-all shadow-sm backdrop-blur-md border border-red-500/10"
-                                                                                    title="Excluir"
+                                                                                    className="flex items-center gap-1.5 px-3 py-2 hover:bg-red-500/10 rounded-xl transition-colors"
                                                                                 >
-                                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                                    <Trash2 className="w-3.5 h-3.5 text-red-400/60" />
+                                                                                    <span className="text-[10px] font-bold text-red-400/60">Excluir</span>
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleCopyMessage(n.content)}
+                                                                                    className="flex items-center gap-1.5 px-3 py-2 hover:bg-white/10 rounded-xl transition-colors"
+                                                                                >
+                                                                                    <Copy className="w-3.5 h-3.5 text-white/60" />
+                                                                                    <span className="text-[10px] font-bold text-white/60">Copiar</span>
                                                                                 </button>
                                                                             </div>
                                                                         )}
                                                                     </>
                                                                 )}
                                                             </div>
-                                                            <span className="text-[10px] text-white/20 font-bold uppercase px-1">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            <div className="flex items-center gap-1.5 px-1">
+                                                                {n.updated_at && (
+                                                                    <span className="text-[9px] text-white/15 font-medium italic">editado</span>
+                                                                )}
+                                                                <span className="text-[10px] text-white/20 font-bold uppercase">{new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            </div>
                                                         </div>
                                                     </motion.div>
                                                 );
@@ -1276,18 +1392,18 @@ const Discipleship: React.FC = () => {
                                 </AnimatePresence>
 
                                 {/* Input Area */}
-                                <footer className="p-6 border-t border-white/5" style={{ background: '#1a1a1a' }}>
+                                <footer className="p-6 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-4)' }}>
                                     <div className="max-w-4xl mx-auto flex gap-3 items-end">
                                         <div className="relative">
                                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" />
-                                            <button onClick={() => fileInputRef.current?.click()} disabled={isUploading || isSending} className="p-4 bg-white/5 text-white/40 rounded-[24px] hover:bg-white/10 transition-all border border-white/5 disabled:opacity-50">
-                                                {isUploading || isSending ? <Loader2 className="w-5 h-5 animate-spin text-white" /> : <Paperclip className="w-5 h-5" />}
+                                            <button onClick={() => fileInputRef.current?.click()} disabled={isUploading || isSending} className="p-4 rounded-[24px] transition-all disabled:opacity-50" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                                                {isUploading || isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
                                             </button>
                                         </div>
-                                        <div className="flex-1 bg-white/[0.03] rounded-[32px] flex flex-col p-2 transition-all group/input">
+                                        <div className="flex-1 rounded-[32px] flex flex-col p-2 transition-all group/input" style={{ background: 'var(--bg-card)' }}>
                                             <textarea rows={1} value={noteInput} onChange={(e) => handleTyping(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} placeholder="Digite sua mensagem..." className="w-full bg-transparent border-none focus:ring-0 text-sm py-4 px-6 font-medium resize-none custom-scrollbar max-h-32 text-white/90" />
                                             <div className="flex justify-end p-2 opacity-60 hover:opacity-100 transition-opacity">
-                                                <button onClick={() => handleSendMessage()} disabled={(!noteInput.trim() && !isUploading) || isSending} style={{ background: '#4B88A2', color: '#fff' }} className="p-3.5 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-lg disabled:opacity-50 disabled:scale-100">
+                                                <button onClick={() => handleSendMessage()} disabled={(!noteInput.trim() && !isUploading) || isSending} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="p-3.5 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-lg disabled:opacity-50 disabled:scale-100">
                                                     {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                                                 </button>
                                             </div>
@@ -1296,9 +1412,9 @@ const Discipleship: React.FC = () => {
                                 </footer>
                             </>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center p-12 text-center bg-gradient-to-b from-transparent to-white/[0.02] mix-blend-screen opacity-40">
-                                <div className="max-w-sm space-y-8">
-                                    <MessageSquare className="w-20 h-20 text-white/10 mx-auto" />
+                            <div className="flex-1 flex items-center justify-center p-12 text-center" style={{ background: 'linear-gradient(to bottom, transparent, var(--bg-card))' }}>
+                                <div className="max-w-sm space-y-8 opacity-40">
+                                    <MessageSquare className="w-20 h-20 mx-auto" style={{ color: 'var(--text-dim)' }} />
                                     <h2 className="text-3xl font-black italic -rotate-1 tracking-tighter">Escolha uma jornada</h2>
                                 </div>
                             </div>
@@ -1320,7 +1436,7 @@ const Discipleship: React.FC = () => {
                 <AnimatePresence>
                     {isGroupMembersModalOpen && selectedConnection?.type === 'group' && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: '#1a1a1a' }} className="border border-white/10 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl">
+                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl">
                                 <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
                                     <div className="flex items-center gap-3">
                                         <Users className="w-5 h-5 text-white/60" />
@@ -1380,7 +1496,7 @@ const Discipleship: React.FC = () => {
                                                                 <button 
                                                                     onClick={() => handleTransferLeadership(member.user_id)}
                                                                     className="px-2 py-1.5 hover:opacity-80 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm border"
-                                                                    style={{ background: 'rgba(75, 136, 162, 0.1)', borderColor: 'rgba(75, 136, 162, 0.15)', color: '#4B88A2' }}
+                                                                    style={{ background: 'var(--border)', borderColor: 'var(--border-strong)', color: 'var(--accent-solid)' }}
                                                                     title="Tornar Líder"
                                                                 >
                                                                     Líder
@@ -1410,13 +1526,13 @@ const Discipleship: React.FC = () => {
                 <AnimatePresence>
                     {confirmModal.isOpen && (
                         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: '#1a1a1a' }} className="border border-white/10 p-8 rounded-[32px] w-full max-w-sm shadow-2xl space-y-6">
+                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 p-8 rounded-[32px] w-full max-w-sm shadow-2xl space-y-6">
                                 <div className="space-y-2">
                                     <h3 className="text-xl font-bold italic tracking-tight">{confirmModal.title}</h3>
                                     <p className="text-sm text-white/60 leading-relaxed">{confirmModal.message}</p>
                                 </div>
                                 <div className="flex flex-col gap-3">
-                                    <button onClick={() => confirmModal.onConfirm()} style={{ background: '#4B88A2', color: '#fff' }} className="w-full py-4 text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.02] active:scale-95 transition-all">Confirmar</button>
+                                    <button onClick={() => confirmModal.onConfirm()} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="w-full py-4 text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-[1.02] active:scale-95 transition-all">Confirmar</button>
                                     <button onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} className="w-full py-4 bg-white/5 text-white/60 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all">Cancelar</button>
                                 </div>
                             </motion.div>
@@ -1437,40 +1553,126 @@ const Discipleship: React.FC = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                <AnimatePresence>
+                    {copySuccess && (
+                        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[210]">
+                            <div className="flex items-center gap-2 px-4 py-2.5 bg-[var(--surface-4)] border border-white/10 rounded-full shadow-2xl backdrop-blur-xl">
+                                <Copy className="w-3.5 h-3.5 text-white/60" />
+                                <span className="text-[11px] font-bold text-white/60">Mensagem copiada</span>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </PageTransition>
     );
 };
 
-const ChallengeMessageCard = ({ note, isMine }: { note: any, isMine?: boolean }) => {
+const ChallengeMessageCard = ({ note, isMine, stats }: { note: any, isMine?: boolean, stats?: BibleStats | null }) => {
     try {
         const data = JSON.parse(note.content.replace('[CHALLENGE]:', ''));
+        const participants = data.participants || [];
+
+        const getChallengeProgress = (targetBook: string, targetStart: number, targetEnd: number, readingHistory?: { book: string; chapters: number[] }[]) => {
+            if (!readingHistory) return 0;
+            const bookStats = readingHistory.find((s: any) => s.book === targetBook);
+            if (!bookStats) return 0;
+            const completedInTarget = bookStats.chapters.filter((c: number) => c >= targetStart && c <= targetEnd).length;
+            const totalTarget = targetEnd - targetStart + 1;
+            return Math.min(100, Math.round((completedInTarget / totalTarget) * 100));
+        };
+
+        const bookInfo = STATIC_BOOKS.find(b => b.name === data.book);
+        const totalChapters = bookInfo?.chapters || (data.end || 50);
+        const chapterCount = data.end - data.start + 1;
 
         return (
             <div className={cn(
-                "bg-black border border-white/10 rounded-[32px] p-6 md:p-8 space-y-6 max-w-full sm:max-w-sm shadow-2xl relative overflow-hidden group",
-                isMine ? "border-white/30" : ""
+                "bg-black border rounded-[32px] p-6 space-y-5 max-w-full sm:max-w-sm shadow-2xl relative overflow-hidden group",
+                isMine ? "border-white/30" : "border-white/10"
             )}>
-                {/* Decorative element */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                {/* Decorative glow */}
+                <div className="absolute top-0 right-0 w-40 h-40 blur-3xl -mr-20 -mt-20 pointer-events-none" style={{ background: 'var(--bg-input)' }} />
 
+                {/* Header */}
                 <div className="flex items-center gap-4 relative">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transform group-hover:rotate-6 transition-transform" style={{ background: '#4B88A2' }}>
-                        <TrendingUp className="w-6 h-6 text-white" />
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transform group-hover:rotate-3 transition-transform" style={{ background: 'linear-gradient(135deg, var(--accent-solid), #333333)' }}>
+                        <BookOpen className="w-7 h-7 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 leading-none">Desafio de Leitura</h4>
-                        <p className="text-base font-bold mt-1.5 text-white">Lançado por {data.leaderName}</p>
+                        <p className="text-sm font-bold mt-1.5 text-white">por {data.leaderName}</p>
+                    </div>
+                    {participants.length > 0 && (
+                        <div className="flex -space-x-2">
+                            {participants.slice(0, 4).map((p: any, i: number) => (
+                                <div key={i} className="w-7 h-7 rounded-full bg-white/10 border-2 border-black flex items-center justify-center text-[9px] font-black text-white/60">
+                                    {(p.name || '?')[0].toUpperCase()}
+                                </div>
+                            ))}
+                            {participants.length > 4 && (
+                                <div className="w-7 h-7 rounded-full bg-white/20 border-2 border-black flex items-center justify-center text-[8px] font-black text-white/80">
+                                    +{participants.length - 4}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Book & Chapters */}
+                <div className="space-y-3 relative">
+                    <div className="py-4 px-5 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-2xl font-black italic tracking-tighter text-white">{data.book}</p>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/30">{chapterCount} caps</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-white/60">Capítulos {data.start} — {data.end}</span>
+                        </div>
+                        {bookInfo && (
+                            <p className="text-[11px] text-white/30 mt-2 leading-relaxed">{(bookInfo.description || '').slice(0, 80)}...</p>
+                        )}
                     </div>
                 </div>
 
-                <div className="space-y-2 relative">
-                    <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] font-black">Meta Proposta</p>
-                    <div className="py-4 px-6 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm shadow-inner shadow-black">
-                        <p className="text-2xl font-black italic tracking-tighter text-white">{data.book}</p>
-                        <p className="text-sm font-medium text-white/60 mt-1 italic">Capítulos {data.start} até {data.end}</p>
+                {/* My Progress (if I'm participating) */}
+                {participants.some((p: any) => p.id === note.author_id) && stats && (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Seu Progresso</span>
+                            <span className="text-[10px] font-black text-white/60">
+                                {getChallengeProgress(data.book, data.start, data.end, stats.readingHistory)}%
+                            </span>
+                        </div>
+                        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${getChallengeProgress(data.book, data.start, data.end, stats.readingHistory)}%` }}
+                                className="h-full rounded-full shadow-[0_0_12px_rgba(75,136,162,0.4)]"
+                                style={{ background: 'linear-gradient(90deg, var(--accent-solid), #555555)' }}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {/* Participants list */}
+                {participants.length > 0 && (
+                    <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Participantes</span>
+                        <div className="space-y-1.5">
+                            {participants.map((p: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-xl">
+                                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[8px] font-black text-white/50">
+                                        {(p.name || '?')[0].toUpperCase()}
+                                    </div>
+                                    <span className="text-xs text-white/50 font-medium flex-1">{p.name}</span>
+                                    <CheckCircle className="w-3 h-3 text-white/20" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     } catch (e) {
@@ -1479,66 +1681,471 @@ const ChallengeMessageCard = ({ note, isMine }: { note: any, isMine?: boolean })
 };
 
 const MyChallengesModal = ({ isOpen, onClose, tasks, stats, onRefresh, currentUserId }: { isOpen: boolean, onClose: () => void, tasks: DiscipleshipTask[], stats: BibleStats | null, onRefresh: () => void, currentUserId?: string }) => {
-    // Only show tasks assigned to the current user
+    const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+
     const myActiveTasks = tasks.filter(t => t.type === 'reading' && !t.is_completed && t.disciple_id === currentUserId);
+    const myCompletedTasks = tasks.filter(t => t.type === 'reading' && t.is_completed && t.disciple_id === currentUserId);
+
+    const displayedTasks = activeTab === 'active' ? myActiveTasks : myCompletedTasks;
+
+    const getProgress = (target: { book: string, start: number, end: number }) => {
+        if (!stats?.readingHistory) return 0;
+        const bookStats = stats.readingHistory.find((s: any) => s.book === target.book);
+        if (!bookStats) return 0;
+        const completedInTarget = bookStats.chapters.filter((c: number) => c >= target.start && c <= target.end).length;
+        const totalTarget = target.end - target.start + 1;
+        return Math.min(100, Math.round((completedInTarget / totalTarget) * 100));
+    };
+
+    const getBookInfo = (bookName: string) => STATIC_BOOKS.find(b => b.name === bookName);
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: '#1a1a1a' }} className="border border-white/10 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl">
-                        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-                            <div className="flex items-center gap-3">
-                                <TrendingUp className="w-5 h-5 text-white/60" />
-                                <h2 className="text-xl font-black italic tracking-tight">Meus Desafios</h2>
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl">
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/5 bg-white/5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--border-strong)' }}>
+                                        <Trophy className="w-5 h-5" style={{ color: 'var(--accent-solid)' }} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black italic tracking-tight">Meus Desafios</h2>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-0.5">
+                                            {myActiveTasks.length} ativos · {myCompletedTasks.length} concluídos
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
                             </div>
-                            <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
+
+                            {/* Tabs */}
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    onClick={() => setActiveTab('active')}
+                                    className={cn(
+                                        "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                        activeTab === 'active'
+                                            ? "text-white shadow-lg"
+                                            : "text-white/30 bg-white/5 hover:bg-white/10"
+                                    )}
+                                    style={activeTab === 'active' ? { background: 'var(--accent-solid)' } : {}}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Flame className="w-3.5 h-3.5" />
+                                        Ativos ({myActiveTasks.length})
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('completed')}
+                                    className={cn(
+                                        "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                        activeTab === 'completed'
+                                            ? "text-white shadow-lg"
+                                            : "text-white/30 bg-white/5 hover:bg-white/10"
+                                    )}
+                                    style={activeTab === 'completed' ? { background: 'var(--accent-solid)' } : {}}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Award className="w-3.5 h-3.5" />
+                                        Concluídos ({myCompletedTasks.length})
+                                    </div>
+                                </button>
+                            </div>
                         </div>
-                        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                            {myActiveTasks.length === 0 ? (
+
+                        {/* Content */}
+                        <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {displayedTasks.length === 0 ? (
                                 <div className="text-center py-12 opacity-20">
                                     <TrendingUp className="w-12 h-12 mx-auto mb-4" />
-                                    <p className="text-sm font-black uppercase tracking-widest">Nenhum desafio ativo</p>
+                                    <p className="text-sm font-black uppercase tracking-widest">
+                                        {activeTab === 'active' ? 'Nenhum desafio ativo' : 'Nenhum desafio concluído'}
+                                    </p>
+                                    <p className="text-[11px] text-white/40 mt-2">
+                                        {activeTab === 'active' ? 'Participe de um desafio lançado no chat' : 'Complete seus desafios para vê-los aqui'}
+                                    </p>
                                 </div>
                             ) : (
-                                myActiveTasks.map(task => {
-                                    let progress = 0;
+                                displayedTasks.map(task => {
                                     let target = { book: '', start: 0, end: 0 };
-                                    try {
-                                        target = JSON.parse(task.target_id || '{}');
-                                        const readingHistory = stats?.readingHistory;
-                                        if (readingHistory) {
-                                            const bookStats = readingHistory.find((s: any) => s.book === target.book);
-                                            if (bookStats) {
-                                                const completedInTarget = bookStats.chapters.filter((c: number) => c >= target.start && c <= target.end).length;
-                                                const totalTarget = target.end - target.start + 1;
-                                                progress = Math.min(100, Math.round((completedInTarget / totalTarget) * 100));
-                                            }
-                                        }
-                                    } catch (e) { }
+                                    try { target = JSON.parse(task.target_id || '{}'); } catch (e) { }
+                                    const progress = activeTab === 'active' ? getProgress(target) : 100;
+                                    const bookInfo = getBookInfo(target.book);
+                                    const chapterCount = target.end - target.start + 1;
+                                    const createdDate = new Date(task.created_at);
 
                                     return (
-                                        <div key={task.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-lg font-black italic text-white/80">{target.book} {target.start}-{target.end}</p>
-                                                <span className="text-[10px] font-black bg-white/10 text-white/60 px-2 py-0.5 rounded-full">{progress}%</span>
-                                            </div>
-                                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                                <div className="h-full transition-all duration-1000" style={{ width: `${progress}%`, background: '#4B88A2' }} />
-                                            </div>
-                                            {progress === 100 && (
-                                                <button
-                                                    onClick={() => discipleshipService.completeTask(task.id).then(() => { onRefresh(); onClose(); })}
-                                                    style={{ background: '#4B88A2', color: '#fff' }}
-                                                    className="w-full py-2 text-[10px] font-black uppercase tracking-widest rounded-xl"
-                                                >
-                                                    Marcar como Concluído ✅
-                                                </button>
+                                        <motion.div
+                                            key={task.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className={cn(
+                                                "border rounded-2xl p-4 space-y-3 transition-all",
+                                                activeTab === 'completed'
+                                                    ? "bg-white/[0.02] border-white/5"
+                                                    : "bg-white/5 border-white/10 hover:border-white/20"
                                             )}
-                                        </div>
+                                        >
+                                            {/* Book info row */}
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        "w-10 h-10 rounded-xl flex items-center justify-center",
+                                                        activeTab === 'completed' ? "bg-white/5" : "bg-white/10"
+                                                    )}>
+                                                        {activeTab === 'completed' ? (
+                                                            <CheckCircle className="w-5 h-5" style={{ color: 'var(--accent-solid)' }} />
+                                                        ) : (
+                                                            <BookOpen className="w-5 h-5 text-white/40" />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className={cn(
+                                                            "text-base font-black italic",
+                                                            activeTab === 'completed' ? "text-white/40" : "text-white/80"
+                                                        )}>
+                                                            {target.book}
+                                                        </p>
+                                                        <p className="text-[10px] text-white/30 font-medium">
+                                                            Cap. {target.start}—{target.end} · {chapterCount} capítulos
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={cn(
+                                                        "text-[10px] font-black px-2 py-0.5 rounded-full",
+                                                        progress === 100 ? "text-white" : "bg-white/10 text-white/60"
+                                                    )} style={progress === 100 ? { background: 'var(--accent-solid)' } : {}}>
+                                                        {progress}%
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            {bookInfo && (
+                                                <p className="text-[11px] text-white/25 leading-relaxed line-clamp-2">
+                                                    {bookInfo.description}
+                                                </p>
+                                            )}
+
+                                            {/* Progress bar */}
+                                            {activeTab === 'active' && (
+                                                <div className="space-y-1.5">
+                                                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${progress}%` }}
+                                                            className="h-full rounded-full"
+                                                            style={{ background: progress === 100 ? 'var(--accent-solid)' : 'var(--accent-solid)' }}
+                                                        />
+                                                    </div>
+                                                    {progress === 100 && (
+                                                        <button
+                                                            onClick={() => discipleshipService.completeTask(task.id).then(() => { onRefresh(); onClose(); })}
+                                                            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }}
+                                                            className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <CheckCircle className="w-3.5 h-3.5" /> Concluir Desafio
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Metadata */}
+                                            <div className="flex items-center justify-between pt-1">
+                                                <span className="text-[9px] text-white/20 font-bold flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {createdDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                                </span>
+                                                {activeTab === 'completed' && (
+                                                    <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: 'var(--accent-solid)' }}>
+                                                        <CheckCircle className="w-3 h-3" /> Concluído
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </motion.div>
                                     );
                                 })
                             )}
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
+const ChallengeCreationModal = ({
+    isOpen, onClose, onCreateChallenge,
+    challengeData, setChallengeData,
+    deadline, setDeadline,
+    bookSearch, setBookSearch,
+    bookExpanded, setBookExpanded
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onCreateChallenge: () => void;
+    challengeData: { book: string; start: number; end: number };
+    setChallengeData: React.Dispatch<React.SetStateAction<{ book: string; start: number; end: number }>>;
+    deadline: string;
+    setDeadline: (v: string) => void;
+    bookSearch: string;
+    setBookSearch: (v: string) => void;
+    bookExpanded: 'VT' | 'NT' | null;
+    setBookExpanded: (v: 'VT' | 'NT' | null) => void;
+}) => {
+    const vtBooks = STATIC_BOOKS.filter(b => b.testament === 'VT');
+    const ntBooks = STATIC_BOOKS.filter(b => b.testament === 'NT');
+
+    const filteredVT = bookSearch
+        ? vtBooks.filter(b => b.name.toLowerCase().includes(bookSearch.toLowerCase()))
+        : vtBooks;
+    const filteredNT = bookSearch
+        ? ntBooks.filter(b => b.name.toLowerCase().includes(bookSearch.toLowerCase()))
+        : ntBooks;
+
+    const selectedBookInfo = STATIC_BOOKS.find(b => b.name === challengeData.book);
+    const maxChapters = selectedBookInfo?.chapters || 50;
+
+    const isValid = challengeData.book && challengeData.start >= 1 && challengeData.end >= challengeData.start && challengeData.end <= maxChapters;
+    const chapterCount = challengeData.end - challengeData.start + 1;
+
+    const handleBookSelect = (book: typeof STATIC_BOOKS[0]) => {
+        setChallengeData({ book: book.name, start: 1, end: Math.min(book.chapters, 5) });
+        setBookSearch('');
+        setBookExpanded(null);
+    };
+
+    const quickSelects = [
+        { label: '5 caps', value: 5 },
+        { label: '10 caps', value: 10 },
+        { label: '15 caps', value: 15 },
+        { label: 'Metade', value: Math.ceil(maxChapters / 2) },
+        { label: 'Livro todo', value: maxChapters },
+    ];
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                    <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0" style={{ background: 'var(--bg-input)' }}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent-solid)' }}>
+                                    <BookOpen className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black tracking-tight">Novo Desafio</h3>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Selecione o livro e o alcance</p>
+                                </div>
+                            </div>
+                            <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+                            {/* Book Search */}
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar livro..."
+                                    value={bookSearch}
+                                    onChange={(e) => { setBookSearch(e.target.value); setBookExpanded(null); }}
+                                    className="w-full bg-black/40 border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium"
+                                />
+                                {bookSearch && (
+                                    <button onClick={() => setBookSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full">
+                                        <X className="w-3 h-3 text-white/40" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Selected Book Display */}
+                            {selectedBookInfo && !bookSearch && (
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-lg font-black italic text-white">{challengeData.book}</span>
+                                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">{maxChapters} caps</span>
+                                    </div>
+                                    <p className="text-[11px] text-white/30 leading-relaxed line-clamp-2">{selectedBookInfo.description}</p>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/5 text-white/30">{selectedBookInfo.testament}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/5 text-white/30">{selectedBookInfo.group}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Book List */}
+                            {(bookSearch || bookExpanded) && (
+                                <div className="space-y-3">
+                                    {!bookSearch && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                                                {bookExpanded === 'VT' ? 'Velho Testamento' : 'Novo Testamento'}
+                                            </span>
+                                            <button onClick={() => setBookExpanded(null)} className="text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white/60">
+                                                Fechar
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                                        {(bookSearch ? [...filteredVT, ...filteredNT] : bookExpanded === 'VT' ? filteredVT : filteredNT).map(book => (
+                                            <button
+                                                key={book.name}
+                                                onClick={() => handleBookSelect(book)}
+                                                className={cn(
+                                                    "w-full flex items-center justify-between p-3 rounded-xl text-left transition-all",
+                                                    challengeData.book === book.name ? "bg-white/10 border border-white/20" : "hover:bg-white/5 border border-transparent"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                                                        <BookOpen className="w-4 h-4 text-white/30" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white/80">{book.name}</p>
+                                                        <p className="text-[9px] text-white/25 uppercase tracking-widest">{book.testament} · {book.chapters} caps</p>
+                                                    </div>
+                                                </div>
+                                                {challengeData.book === book.name && <Check className="w-4 h-4" style={{ color: 'var(--accent-solid)' }} />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Testament Tabs (when no search) */}
+                            {!bookSearch && !bookExpanded && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setBookExpanded('VT')}
+                                        className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-center"
+                                    >
+                                        <p className="text-2xl font-black italic text-white/20">VT</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">{vtBooks.length} livros</p>
+                                    </button>
+                                    <button
+                                        onClick={() => setBookExpanded('NT')}
+                                        className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-center"
+                                    >
+                                        <p className="text-2xl font-black italic text-white/20">NT</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mt-1">{ntBooks.length} livros</p>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Chapter Range */}
+                            <div className="space-y-3">
+                                <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Capítulos</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase tracking-widest text-white/25 font-bold ml-1">De</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={maxChapters}
+                                            value={challengeData.start}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value) || 1;
+                                                setChallengeData(prev => ({ ...prev, start: Math.max(1, Math.min(val, maxChapters)), end: Math.max(val, prev.end) }));
+                                            }}
+                                            className="w-full bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium text-center"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase tracking-widest text-white/25 font-bold ml-1">Até</label>
+                                        <input
+                                            type="number"
+                                            min={challengeData.start}
+                                            max={maxChapters}
+                                            value={challengeData.end}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value) || challengeData.start;
+                                                setChallengeData(prev => ({ ...prev, end: Math.max(prev.start, Math.min(val, maxChapters)) }));
+                                            }}
+                                            className="w-full bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium text-center"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Quick select buttons */}
+                                <div className="flex flex-wrap gap-1.5">
+                                    {quickSelects.map(qs => (
+                                        <button
+                                            key={qs.label}
+                                            onClick={() => setChallengeData(prev => ({ ...prev, end: Math.min(prev.start + qs.value - 1, maxChapters) }))}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                                chapterCount === qs.value ? "text-white" : "bg-white/5 text-white/30 hover:bg-white/10"
+                                            )}
+                                            style={chapterCount === qs.value ? { background: 'var(--accent-solid)' } : {}}
+                                        >
+                                            {qs.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Validation feedback */}
+                                {challengeData.end > maxChapters && (
+                                    <p className="text-[11px] text-red-400 font-medium">
+                                        Máximo de capítulos para {challengeData.book}: {maxChapters}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Deadline (optional) */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1 flex items-center gap-2">
+                                        <Calendar className="w-3 h-3" />
+                                        Prazo (opcional)
+                                    </label>
+                                    {deadline && (
+                                        <button onClick={() => setDeadline('')} className="text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white/60">
+                                            Remover
+                                        </button>
+                                    )}
+                                </div>
+                                <input
+                                    type="date"
+                                    value={deadline}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => setDeadline(e.target.value)}
+                                    className="w-full bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium text-white/60"
+                                />
+                                {deadline && (
+                                    <p className="text-[10px] text-white/30 ml-1">
+                                        Prazo: {new Date(deadline + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-white/5 shrink-0">
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                                    {challengeData.book} · {chapterCount} capítulos
+                                </span>
+                                {!isValid && (
+                                    <span className="text-[10px] text-red-400 font-bold">Verifique os capítulos</span>
+                                )}
+                            </div>
+                            <button
+                                onClick={onCreateChallenge}
+                                disabled={!isValid}
+                                style={{ background: isValid ? 'var(--accent-solid)' : undefined, color: '#fff' }}
+                                className={cn(
+                                    "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl",
+                                    isValid ? "hover:scale-[1.02] active:scale-95" : "bg-white/5 text-white/20 cursor-not-allowed"
+                                )}
+                            >
+                                Lançar Desafio
+                            </button>
                         </div>
                     </motion.div>
                 </motion.div>

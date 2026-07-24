@@ -63,6 +63,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     useEffect(() => {
         localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
         document.documentElement.setAttribute('data-theme', preferences.theme);
+        document.documentElement.setAttribute('data-color-mode', 'dark');
     }, [preferences]);
 
     const updatePreference = <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {

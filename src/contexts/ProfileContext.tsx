@@ -12,6 +12,7 @@ export interface UserProfile {
     discord_decoration_url: string | null;
     role: 'leader' | 'member';
     onboarding_completed: boolean;
+    birth_date: string | null;
 }
 
 interface ProfileContextType {

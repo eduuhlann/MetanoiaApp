@@ -187,16 +187,16 @@ export default function AiPlanGenerator() {
                             value={config.theme}
                             onChange={(e) => setConfig({ ...config, theme: e.target.value })}
                             className="w-full bg-transparent border-b-2 pb-4 text-xl sm:text-3xl font-bold text-white focus:outline-none transition-colors placeholder:italic"
-                            style={{ borderColor: 'rgba(75, 136, 162, 0.3)' }}
-                            onFocus={(e) => e.currentTarget.style.borderColor = '#4B88A2'}
-                            onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(75, 136, 162, 0.3)'}
+                            style={{ borderColor: 'var(--accent-hover)' }}
+                            onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent-solid)'}
+                            onBlur={(e) => e.currentTarget.style.borderColor = 'var(--accent-hover)'}
                             autoFocus
                         />
                         <button
                             onClick={handleNext}
                             disabled={!config.theme.trim()}
                             className="w-full py-5 rounded-2xl font-bold text-xs tracking-[0.3em] uppercase disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            style={{ background: '#4B88A2', color: '#fff' }}
+                            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }}
                         >
                             Continuar
                         </button>
@@ -222,12 +222,12 @@ export default function AiPlanGenerator() {
                                     "p-8 border rounded-3xl flex flex-col items-center justify-center text-center group transition-all",
                                 )}
                                 style={{
-                                    background: config.duration === d ? 'rgba(75, 136, 162, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                    borderColor: config.duration === d ? '#4B88A2' : 'rgba(75, 136, 162, 0.1)'
+                                    background: config.duration === d ? 'var(--border-strong)' : 'rgba(255, 255, 255, 0.03)',
+                                    borderColor: config.duration === d ? 'var(--accent-solid)' : 'var(--border)'
                                 }}
                             >
-                                <h4 className="text-3xl font-bold mb-2" style={{ color: '#4B88A2' }}>{d}</h4>
-                                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Dias</p>
+                                <h4 className="text-3xl font-bold mb-2" style={{ color: 'var(--accent-solid)' }}>{d}</h4>
+                                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Dias</p>
                             </button>
                         ))}
                     </motion.div>
@@ -256,18 +256,18 @@ export default function AiPlanGenerator() {
                                     "w-full p-6 border rounded-3xl flex items-center gap-6 group transition-all text-left",
                                 )}
                                 style={{
-                                    background: config.testament === t.id ? 'rgba(75, 136, 162, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                    borderColor: config.testament === t.id ? '#4B88A2' : 'rgba(75, 136, 162, 0.1)'
+                                    background: config.testament === t.id ? 'var(--border-strong)' : 'rgba(255, 255, 255, 0.03)',
+                                    borderColor: config.testament === t.id ? 'var(--accent-solid)' : 'var(--border)'
                                 }}
                             >
-                                <div className="p-4 rounded-2xl transition-colors" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                                    <t.icon size={24} style={{ color: '#4B88A2' }} />
+                                <div className="p-4 rounded-2xl transition-colors" style={{ background: 'var(--border)' }}>
+                                    <t.icon size={24} style={{ color: 'var(--accent-solid)' }} />
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="text-xl font-bold">{t.id}</h4>
-                                    <p className="text-sm italic mt-1" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>{t.desc}</p>
+                                    <p className="text-sm italic mt-1" style={{ color: 'var(--text-muted)' }}>{t.desc}</p>
                                 </div>
-                                <ChevronRight className="transition-colors" size={20} style={{ color: 'rgba(75, 136, 162, 0.3)' }} />
+                                <ChevronRight className="transition-colors" size={20} style={{ color: 'var(--accent-hover)' }} />
                             </button>
                         ))}
                     </motion.div>
@@ -296,18 +296,18 @@ export default function AiPlanGenerator() {
                                     "w-full p-6 border rounded-3xl flex items-center gap-6 group transition-all text-left",
                                 )}
                                 style={{
-                                    background: config.depth === d.id ? 'rgba(75, 136, 162, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                    borderColor: config.depth === d.id ? '#4B88A2' : 'rgba(75, 136, 162, 0.1)'
+                                    background: config.depth === d.id ? 'var(--border-strong)' : 'rgba(255, 255, 255, 0.03)',
+                                    borderColor: config.depth === d.id ? 'var(--accent-solid)' : 'var(--border)'
                                 }}
                             >
-                                <div className="p-4 rounded-2xl transition-colors" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                                    <d.icon size={24} style={{ color: '#4B88A2' }} />
+                                <div className="p-4 rounded-2xl transition-colors" style={{ background: 'var(--border)' }}>
+                                    <d.icon size={24} style={{ color: 'var(--accent-solid)' }} />
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="text-xl font-bold">{d.id}</h4>
-                                    <p className="text-sm italic mt-1" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>{d.desc}</p>
+                                    <p className="text-sm italic mt-1" style={{ color: 'var(--text-muted)' }}>{d.desc}</p>
                                 </div>
-                                <ChevronRight className="transition-colors" size={20} style={{ color: 'rgba(75, 136, 162, 0.3)' }} />
+                                <ChevronRight className="transition-colors" size={20} style={{ color: 'var(--accent-hover)' }} />
                             </button>
                         ))}
                     </motion.div>
@@ -336,15 +336,15 @@ export default function AiPlanGenerator() {
                                     "p-8 border rounded-3xl flex flex-col items-center justify-center text-center group transition-all",
                                 )}
                                 style={{
-                                    background: config.period === p.id ? 'rgba(75, 136, 162, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                                    borderColor: config.period === p.id ? '#4B88A2' : 'rgba(75, 136, 162, 0.1)'
+                                    background: config.period === p.id ? 'var(--border-strong)' : 'rgba(255, 255, 255, 0.03)',
+                                    borderColor: config.period === p.id ? 'var(--accent-solid)' : 'var(--border)'
                                 }}
                             >
-                                <div className="p-4 rounded-full transition-colors mb-6" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                                    <p.icon size={32} style={{ color: '#4B88A2' }} />
+                                <div className="p-4 rounded-full transition-colors mb-6" style={{ background: 'var(--border)' }}>
+                                    <p.icon size={32} style={{ color: 'var(--accent-solid)' }} />
                                 </div>
                                 <h4 className="text-xl font-bold mb-2">{p.id}</h4>
-                                <p className="text-xs italic" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>{p.desc}</p>
+                                <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{p.desc}</p>
                             </button>
                         ))}
                     </motion.div>
@@ -368,22 +368,22 @@ export default function AiPlanGenerator() {
                         animate={{ opacity: 1, scale: 1 }}
                         className="text-center space-y-8"
                     >
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8" style={{ background: '#4B88A2' }}>
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8" style={{ background: 'var(--accent-solid)' }}>
                             <BookOpen size={40} color="#fff" />
                         </div>
                         <div>
                             <span className="px-4 py-2 rounded-full text-[10px] font-bold tracking-[0.3em] uppercase mb-6 inline-block"
-                                style={{ background: 'rgba(75, 136, 162, 0.15)', border: '1px solid rgba(75, 136, 162, 0.2)', color: 'rgba(75, 136, 162, 0.7)' }}
+                                style={{ background: 'var(--border-strong)', border: '1px solid var(--accent-soft)', color: 'var(--text-secondary)' }}
                             >
                                 Plano {config.duration} Dias • {config.period}
                             </span>
                             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">{generatedTitle}</h2>
-                            <p className="font-serif italic text-lg max-w-md mx-auto" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>{generatedDescription}</p>
+                            <p className="font-serif italic text-lg max-w-md mx-auto" style={{ color: 'var(--text-secondary)' }}>{generatedDescription}</p>
                         </div>
                         <button
                             onClick={() => navigate('/plans')}
                             className="w-full py-5 rounded-2xl font-bold text-xs tracking-[0.3em] uppercase transition-colors mt-8"
-                            style={{ background: '#4B88A2', color: '#fff' }}
+                            style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }}
                         >
                             Ver Meu Plano
                         </button>
@@ -393,7 +393,7 @@ export default function AiPlanGenerator() {
     };
 
     return (
-        <div className="min-h-screen text-white selection:bg-[#4B88A2]/30 selection:text-white relative overflow-hidden" style={{ background: '#252627' }}>
+        <div className="min-h-screen text-white selection:bg-[var(--accent-soft)] selection:text-white relative overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
             <header className="fixed top-0 left-0 right-0 p-6 md:p-12 z-50 flex justify-between items-center pointer-events-none">
                 {currentStep !== 'generating' && currentStep !== 'success' ? (
                     <button
@@ -417,15 +417,15 @@ export default function AiPlanGenerator() {
                     {currentStep !== 'generating' && currentStep !== 'success' && (
                         <div className="mb-16">
                             <div className="flex items-center gap-2 mb-8">
-                                <div className="h-1 rounded-full flex-1 overflow-hidden" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
+                                <div className="h-1 rounded-full flex-1 overflow-hidden" style={{ background: 'var(--border)' }}>
                                     <motion.div
                                         className="h-full rounded-full"
-                                        style={{ background: '#4B88A2' }}
+                                        style={{ background: 'var(--accent-solid)' }}
                                         initial={{ width: 0 }}
                                         animate={{ width: `${(['theme', 'duration', 'testament', 'depth', 'period'].indexOf(currentStep) + 1) * 20}%` }}
                                     />
                                 </div>
-                                <span className="text-[10px] font-bold tracking-[0.3em] uppercase w-12 text-right" style={{ color: 'rgba(75, 136, 162, 0.5)' }}>
+                                <span className="text-[10px] font-bold tracking-[0.3em] uppercase w-12 text-right" style={{ color: 'var(--accent-hover)' }}>
                                     {['theme', 'duration', 'testament', 'depth', 'period'].indexOf(currentStep) + 1}/5
                                 </span>
                             </div>
@@ -439,7 +439,7 @@ export default function AiPlanGenerator() {
                                 <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
                                     {currentStepInfo.title}
                                 </h1>
-                                <p className="text-lg italic opacity-80" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>
+                                <p className="text-lg italic opacity-80" style={{ color: 'var(--text-secondary)' }}>
                                     {currentStepInfo.subtitle}
                                 </p>
                             </motion.div>

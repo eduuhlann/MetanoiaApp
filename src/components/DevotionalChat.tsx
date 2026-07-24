@@ -149,30 +149,30 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
     const dailyReadings = group?.devotional?.daily_readings;
 
     return (
-        <div className="flex flex-col h-screen" style={{ background: '#252627' }}>
+        <div className="flex flex-col h-screen" style={{ background: 'var(--bg-primary)' }}>
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: 'rgba(75, 136, 162, 0.1)', background: 'rgba(37, 38, 39, 0.95)', backdropFilter: 'blur(20px)' }}>
-                <button onClick={onBack} className="p-2 rounded-xl transition-colors hover:bg-white/5" style={{ color: 'rgba(211, 212, 217, 0.6)' }}>
+            <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)' }}>
+                <button onClick={onBack} className="p-2 rounded-xl transition-colors hover:bg-white/5" style={{ color: 'var(--text-secondary)' }}>
                     <ArrowLeft size={20} />
                 </button>
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     {group?.photo_url ? (
                         <img src={group.photo_url} alt="" className="w-10 h-10 rounded-full object-cover" />
                     ) : (
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(75, 136, 162, 0.15)' }}>
-                            <Users size={18} style={{ color: '#4B88A2' }} />
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--border-strong)' }}>
+                            <Users size={18} style={{ color: 'var(--accent-solid)' }} />
                         </div>
                     )}
                     <div className="min-w-0">
-                        <h3 className="text-sm font-bold truncate" style={{ color: '#FFF9FB' }}>{group?.name || 'Grupo'}</h3>
-                        <p className="text-[10px]" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>{group?.devotional?.title}</p>
+                        <h3 className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{group?.name || 'Grupo'}</h3>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{group?.devotional?.title}</p>
                     </div>
                 </div>
                 {dailyReadings && dailyReadings.length > 0 && (
                     <button
                         onClick={() => setShowReadings(!showReadings)}
                         className="p-2 rounded-xl transition-colors hover:bg-white/5"
-                        style={{ color: showReadings ? '#4B88A2' : 'rgba(211, 212, 217, 0.4)' }}
+                        style={{ color: showReadings ? 'var(--accent-solid)' : 'var(--text-muted)' }}
                     >
                         <BookOpen size={20} />
                     </button>
@@ -187,19 +187,19 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden border-b"
-                        style={{ borderColor: 'rgba(75, 136, 162, 0.1)', background: 'rgba(255, 255, 255, 0.02)' }}
+                        style={{ borderColor: 'var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}
                     >
                         <div className="p-4 max-h-64 overflow-y-auto space-y-3">
-                            <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Leituras do Devocional</h4>
+                            <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--text-muted)' }}>Leituras do Devocional</h4>
                             {dailyReadings.map((reading: any, idx: number) => (
-                                <div key={idx} className="p-3 rounded-xl" style={{ background: 'rgba(75, 136, 162, 0.05)', border: '1px solid rgba(75, 136, 162, 0.1)' }}>
+                                <div key={idx} className="p-3 rounded-xl" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(75, 136, 162, 0.2)', color: '#4B88A2' }}>Dia {reading.day}</span>
-                                        <span className="text-xs font-bold" style={{ color: '#FFF9FB' }}>{reading.title}</span>
+                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-soft)', color: 'var(--accent-solid)' }}>Dia {reading.day}</span>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{reading.title}</span>
                                     </div>
-                                    <p className="text-xs font-bold mb-1" style={{ color: 'rgba(75, 136, 162, 0.8)' }}>{reading.verse}</p>
-                                    <p className="text-[11px] italic leading-relaxed" style={{ color: 'rgba(211, 212, 217, 0.5)' }}>"{reading.reading}"</p>
-                                    <p className="text-[11px] mt-2 leading-relaxed" style={{ color: 'rgba(211, 212, 217, 0.6)' }}>{reading.reflection}</p>
+                                    <p className="text-xs font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{reading.verse}</p>
+                                    <p className="text-[11px] italic leading-relaxed" style={{ color: 'var(--text-secondary)' }}>"{reading.reading}"</p>
+                                    <p className="text-[11px] mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{reading.reflection}</p>
                                 </div>
                             ))}
                         </div>
@@ -211,11 +211,11 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center">
-                        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                            <Users size={28} style={{ color: 'rgba(75, 136, 162, 0.3)' }} />
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'var(--border)' }}>
+                            <Users size={28} style={{ color: 'var(--accent-hover)' }} />
                         </div>
-                        <p className="text-sm font-medium" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Nenhuma mensagem ainda</p>
-                        <p className="text-xs mt-1" style={{ color: 'rgba(211, 212, 217, 0.2)' }}>Comece a conversa sobre o devocional</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Nenhuma mensagem ainda</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Comece a conversa sobre o devocional</p>
                     </div>
                 )}
                 {messages.map((msg) => {
@@ -228,11 +228,11 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
                             className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}
                         >
                             {!isOwn && (
-                                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1" style={{ background: 'rgba(75, 136, 162, 0.15)' }}>
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1" style={{ background: 'var(--border-strong)' }}>
                                     {msg.profiles?.avatar_url ? (
                                         <img src={msg.profiles.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
                                     ) : (
-                                        <span className="text-[10px] font-bold" style={{ color: '#4B88A2' }}>
+                                        <span className="text-[10px] font-bold" style={{ color: 'var(--accent-solid)' }}>
                                             {(msg.profiles?.display_name || msg.profiles?.username || '?').charAt(0).toUpperCase()}
                                         </span>
                                     )}
@@ -240,21 +240,21 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
                             )}
                             <div className={cn("max-w-[75%]", isOwn ? "items-end" : "items-start")}>
                                 {!isOwn && (
-                                    <p className="text-[10px] font-bold mb-1 px-1" style={{ color: 'rgba(75, 136, 162, 0.6)' }}>
+                                    <p className="text-[10px] font-bold mb-1 px-1" style={{ color: 'var(--text-secondary)' }}>
                                         {msg.profiles?.display_name || msg.profiles?.username || 'Desconhecido'}
                                     </p>
                                 )}
                                 <div
                                     className={cn("px-4 py-2.5 rounded-2xl text-sm leading-relaxed", isOwn ? "rounded-br-md" : "rounded-bl-md")}
                                     style={{
-                                        background: isOwn ? 'rgba(75, 136, 162, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                                        border: isOwn ? '1px solid rgba(75, 136, 162, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
-                                        color: 'rgba(211, 212, 217, 0.8)'
+                                        background: isOwn ? 'var(--accent-soft)' : 'rgba(255, 255, 255, 0.05)',
+                                        border: isOwn ? '1px solid var(--accent-soft)' : '1px solid rgba(255, 255, 255, 0.05)',
+                                        color: 'var(--text-primary)'
                                     }}
                                 >
                                     {msg.content}
                                 </div>
-                                <p className="text-[9px] mt-1 px-1" style={{ color: 'rgba(211, 212, 217, 0.2)' }}>
+                                <p className="text-[9px] mt-1 px-1" style={{ color: 'var(--text-muted)' }}>
                                     {formatDate(msg.created_at)} {formatTime(msg.created_at)}
                                 </p>
                             </div>
@@ -265,7 +265,7 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
             </div>
 
             {/* Input */}
-            <div className="px-4 py-3 border-t" style={{ borderColor: 'rgba(75, 136, 162, 0.1)', background: 'rgba(37, 38, 39, 0.95)', backdropFilter: 'blur(20px)' }}>
+            <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)' }}>
                 <div className="flex items-center gap-2">
                     <input
                         ref={inputRef}
@@ -275,13 +275,13 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
                         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                         placeholder="Digite sua mensagem..."
                         className="flex-1 rounded-2xl py-3 px-4 focus:outline-none text-sm"
-                        style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'rgba(211, 212, 217, 0.8)' }}
+                        style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'var(--text-primary)' }}
                     />
                     <button
                         onClick={handleSend}
                         disabled={!newMessage.trim() || sending}
                         className="p-3.5 rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30"
-                        style={{ background: '#4B88A2' }}
+                        style={{ background: 'var(--accent-solid)' }}
                     >
                         <Send size={18} className="text-white" />
                     </button>

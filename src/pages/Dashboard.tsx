@@ -33,6 +33,8 @@ import {
     Users,
     Sparkles,
     Compass,
+    Cake,
+    Zap,
 } from 'lucide-react';
 import CustomizationModal from '../components/CustomizationModal';
 import { NotificationBell } from '../components/NotificationBell';
@@ -42,6 +44,7 @@ import PageTransition from '../components/PageTransition';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { getWeeklyChallenge, type WeeklyChallenge } from '../services/features/plansService';
 
 const AnimatedIcon = ({
     fallback: FallbackIcon,
@@ -226,6 +229,8 @@ export default function Dashboard() {
     const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
     const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
     const [myGroups, setMyGroups] = useState<{ id: string; name: string; photo_url: string | null; devotional_title: string }[]>([]);
+    const [birthdayUsers, setBirthdayUsers] = useState<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; birth_date: string; age: number }[]>([]);
+    const [weeklyChallenge, setWeeklyChallenge] = useState<WeeklyChallenge | null>(null);
 
     const handleSignOut = async () => {
         await signOut();
@@ -289,6 +294,48 @@ export default function Dashboard() {
 
         fetchEvents();
         fetchMyGroups();
+        setWeeklyChallenge(getWeeklyChallenge());
+
+        const fetchBirthdays = async () => {
+            try {
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1;
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url, birth_date')
+                    .not('birth_date', 'is', null);
+                
+                if (error || !data) {
+                    // Column might not exist yet - show empty state
+                    return;
+                }
+                
+                const monthBirthdays = data
+                    .filter((p: any) => {
+                        const date = new Date(p.birth_date);
+                        return date.getMonth() + 1 === currentMonth;
+                    })
+                    .map((p: any) => {
+                        const birthDate = new Date(p.birth_date);
+                        let age = now.getFullYear() - birthDate.getFullYear();
+                        const monthDiff = now.getMonth() - birthDate.getMonth();
+                        if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+                            age--;
+                        }
+                        return { ...p, birth_date: p.birth_date, age };
+                    })
+                    .sort((a: any, b: any) => {
+                        const dayA = new Date(a.birth_date).getDate();
+                        const dayB = new Date(b.birth_date).getDate();
+                        return dayA - dayB;
+                    });
+                setBirthdayUsers(monthBirthdays);
+            } catch (err) {
+                // Column might not exist yet - show empty state
+            }
+        };
+
+        fetchBirthdays();
     }, [user]);
 
     const displayName = profile?.display_name || profile?.username || user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Jovem Metanoia';
@@ -340,12 +387,12 @@ export default function Dashboard() {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white p-4 md:p-12 overflow-x-hidden selection:bg-[#4B88A2]/30 selection:text-white relative" style={{ background: preferences.wallpaper === 'custom' ? 'transparent' : '#252627' }}>
+        <div className="min-h-screen text-white p-4 md:p-12 overflow-x-hidden selection:bg-[var(--accent-soft)] selection:text-white relative" style={{ background: preferences.wallpaper === 'custom' ? 'transparent' : 'var(--bg-primary)' }}>
             <div className="max-w-full relative z-10">
                     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 md:mb-16">
                         <div className="flex items-center gap-3 md:gap-6">
                             <div className="space-y-1">
-                                        <span className="text-[11px] sm:text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Bem-vindo</span>
+                                        <span className="text-[11px] sm:text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>Bem-vindo</span>
                                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter">
                                     {displayName}
                                 </h1>
@@ -436,13 +483,13 @@ export default function Dashboard() {
                         <div className="mt-12 space-y-4">
                             <div className="flex items-center justify-between mb-2">
                                 <div>
-                                    <span className="text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Próximos Eventos</span>
+                                    <span className="text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>Próximos Eventos</span>
                                     <h2 className="text-xl font-bold tracking-tight mt-1">Encontros</h2>
                                 </div>
                                 <button
                                     onClick={() => navigate('/events')}
                                     className="text-xs font-bold tracking-widest uppercase flex items-center gap-1 transition-colors hover:text-white/80"
-                                    style={{ color: 'rgba(75, 136, 162, 0.8)' }}
+                                    style={{ color: 'var(--text-primary)' }}
                                 >
                                     Ver todos <ChevronRight size={14} />
                                 </button>
@@ -455,16 +502,16 @@ export default function Dashboard() {
                                     transition={{ delay: i * 0.08 }}
                                     onClick={() => navigate('/events')}
                                     className="p-5 rounded-[1.5rem] cursor-pointer group transition-all duration-300 hover:scale-[1.01]"
-                                    style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(75, 136, 162, 0.1)' }}
+                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0" style={{ background: 'rgba(75, 136, 162, 0.1)' }}>
-                                            <span className="text-[9px] font-black tracking-widest uppercase" style={{ color: 'rgba(75, 136, 162, 0.6)' }}>{new Date(event.event_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' })}</span>
-                                            <span className="text-lg font-black" style={{ color: '#FFF9FB' }}>{new Date(event.event_date + 'T00:00:00').getDate()}</span>
+                                        <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0" style={{ background: 'var(--border)' }}>
+                                            <span className="text-[9px] font-black tracking-widest uppercase" style={{ color: 'var(--text-secondary)' }}>{new Date(event.event_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                                            <span className="text-lg font-black" style={{ color: 'var(--text-primary)' }}>{new Date(event.event_date + 'T00:00:00').getDate()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold tracking-tight truncate" style={{ color: '#FFF9FB' }}>{event.title}</h4>
-                                            <div className="flex flex-wrap items-center gap-3 text-[11px] mt-1" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>
+                                            <h4 className="text-sm font-bold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{event.title}</h4>
+                                            <div className="flex flex-wrap items-center gap-3 text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
                                                  {event.event_time && <span className="flex items-center gap-1"><Clock size={12} /> {event.event_time}</span>}
                                                  {event.location && <span className="flex items-center gap-1"><MapPin size={12} /> {event.location}</span>}
                                             </div>
@@ -475,6 +522,136 @@ export default function Dashboard() {
                             ))}
                         </div>
                     )}
+
+                    {weeklyChallenge && (
+                        <div className="mt-12 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <span className="text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>Desafio da Semana</span>
+                                    <h2 className="text-xl font-bold tracking-tight mt-1">{weeklyChallenge.planTitle}</h2>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/plans')}
+                                    className="text-xs font-bold tracking-widest uppercase flex items-center gap-1 transition-colors hover:text-white/80"
+                                    style={{ color: 'var(--text-primary)' }}
+                                >
+                                    Ver plano <ChevronRight size={14} />
+                                </button>
+                            </div>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-5 rounded-[1.5rem] space-y-4"
+                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Zap size={16} style={{ color: 'var(--accent-solid)' }} />
+                                        <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>Semana {weeklyChallenge.weekNumber}</span>
+                                    </div>
+                                    <span className="text-xs font-bold" style={{ color: 'var(--accent-solid)' }}>{weeklyChallenge.completedCount}/7</span>
+                                </div>
+                                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-card-hover)' }}>
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${(weeklyChallenge.completedCount / 7) * 100}%` }}
+                                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                                        className="h-full rounded-full"
+                                        style={{ background: 'var(--accent-solid)' }}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-7 gap-2">
+                                    {weeklyChallenge.days.map((day, i) => (
+                                        <div key={i} className="text-center space-y-1.5">
+                                            <span className="text-[9px] font-bold tracking-wider uppercase block" style={{ color: day.isToday ? 'var(--accent-solid)' : 'var(--text-muted)' }}>
+                                                {day.dayShort}
+                                            </span>
+                                            <div
+                                                className={cn(
+                                                    "w-8 h-8 mx-auto rounded-full flex items-center justify-center text-[10px] font-bold transition-all",
+                                                    day.completed ? "text-white" : day.isToday ? "text-white" : "text-white/20"
+                                                )}
+                                                style={{
+                                                    background: day.completed ? 'var(--accent-solid)' : day.isToday ? 'var(--accent-hover)' : 'var(--bg-card-hover)',
+                                                    border: day.isToday && !day.completed ? '1px solid var(--accent-hover)' : '1px solid transparent'
+                                                }}
+                                            >
+                                                {day.completed ? <Sparkles size={12} /> : i + 1}
+                                            </div>
+                                            <span className="text-[8px] font-medium block leading-tight" style={{ color: 'var(--text-dim)' }}>
+                                                {day.chapters.length > 0 ? `${day.chapters.length}ch` : '—'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+
+                    <div className="mt-12 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <div>
+                                <span className="text-[10px] font-bold tracking-[0.5em] uppercase" style={{ color: 'var(--text-muted)' }}>
+                                    {new Date().toLocaleDateString('pt-BR', { month: 'long' })}
+                                </span>
+                                <h2 className="text-xl font-bold tracking-tight mt-1">Aniversariantes</h2>
+                            </div>
+                        </div>
+                        {birthdayUsers.length > 0 ? (
+                            <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                                {birthdayUsers.map((bUser, i) => {
+                                    const birthDay = new Date(bUser.birth_date).getDate();
+                                    const isToday = new Date().getDate() === birthDay;
+                                    return (
+                                        <motion.div
+                                            key={bUser.id}
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: i * 0.05 }}
+                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl shrink-0 min-w-[100px] transition-all"
+                                            style={{
+                                                background: isToday ? 'var(--border-strong)' : 'var(--bg-card)',
+                                                border: isToday ? '1px solid var(--accent-hover)' : '1px solid var(--border)',
+                                            }}
+                                        >
+                                            <div className="relative">
+                                                <div className="w-12 h-12 rounded-full bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
+                                                    {bUser.avatar_url ? (
+                                                        <img src={bUser.avatar_url} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <User className="w-5 h-5 text-white/30" />
+                                                    )}
+                                                </div>
+                                                {isToday && (
+                                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'var(--accent-solid)' }}>
+                                                        <Cake className="w-3 h-3 text-white" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-[11px] font-bold truncate max-w-[80px]" style={{ color: 'var(--text-primary)' }}>
+                                                    {bUser.display_name || bUser.username || 'Usuário'}
+                                                </p>
+                                                <p className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                                                    {birthDay}/{new Date(bUser.birth_date).getMonth() + 1}
+                                                </p>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="p-6 rounded-2xl text-center" style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)' }}>
+                                <Cake className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--text-dim)' }} />
+                                <p className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
+                                    Nenhum aniversariante este mês
+                                </p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-dim)' }}>
+                                    Adicione sua data de aniversário no perfil
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

@@ -79,13 +79,13 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                             <div className="space-y-10">
                                 <section className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Sua Galeria</h4>
+                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--text-muted)' }}>Sua Galeria</h4>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
-                                        <label className="flex flex-col items-center justify-center gap-2 h-24 rounded-2xl bg-white/[0.03] border border-[#4B88A2]/10 border-dashed hover:bg-white/10 transition-all cursor-pointer group">
-                                            <Upload size={20} className="text-[#4B88A2]/40 group-hover:text-[#4B88A2] group-hover:scale-110 transition-all" />
-                                            <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Novo Upload</span>
+                                        <label className="flex flex-col items-center justify-center gap-2 h-24 rounded-2xl bg-white/[0.03] border border-[var(--accent-soft)] border-dashed hover:bg-white/10 transition-all cursor-pointer group">
+                                            <Upload size={20} className="text-[var(--text-muted)] group-hover:text-[var(--accent-solid)] group-hover:scale-110 transition-all" />
+                                            <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>Novo Upload</span>
                                             <input type="file" className="hidden" accept="video/mp4,image/*" onChange={handleFileUpload} />
                                         </label>
 
@@ -99,7 +99,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                     className={cn(
                                                         "w-full h-full rounded-2xl overflow-hidden transition-all border-2",
                                                         preferences.wallpaper === 'custom' && preferences.customWallpaper?.url === p.url
-                                                            ? "border-[#4B88A2] shadow-lg shadow-[#4B88A2]/10"
+                                                            ? "border-[var(--accent-solid)] shadow-lg shadow-white/5"
                                                             : "border-transparent opacity-60 hover:opacity-100"
                                                     )}
                                                 >
@@ -129,7 +129,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
 
                                 <section className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Fundo do Sistema</h4>
+                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--text-muted)' }}>Fundo do Sistema</h4>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         {[
@@ -144,8 +144,8 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                 className={cn(
                                                     "py-3 px-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border-2",
                                                     preferences.wallpaper === wp.id
-                                                        ? "border-[#4B88A2] bg-[#4B88A2]/10 text-[#FFF9FB] shadow-lg shadow-[#4B88A2]/10"
-                                                        : "border-transparent bg-white/[0.03] text-[#D3D4D9]/40 hover:bg-white/5 hover:text-[#D3D4D9]/80"
+                                                        ? "border-[var(--accent-solid)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-lg shadow-white/5"
+                                                        : "border-transparent bg-white/[0.03] text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-secondary)]"
                                                 )}
                                             >
                                                 {wp.label}
@@ -156,7 +156,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
 
                                 <section className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Estilo de Navegação</h4>
+                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--text-muted)' }}>Estilo de Navegação</h4>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         {(['cards', 'dock'] as const).map((style) => (
@@ -166,8 +166,8 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                 className={cn(
                                                     "py-3 px-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border-2",
                                                     (preferences.dashboardStyle || 'dock') === style
-                                                        ? "border-[#4B88A2] bg-[#4B88A2]/10 text-[#FFF9FB] shadow-lg shadow-[#4B88A2]/10"
-                                                        : "border-transparent bg-white/[0.03] text-[#D3D4D9]/40 hover:bg-white/5 hover:text-[#D3D4D9]/80"
+                                                        ? "border-[var(--accent-solid)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-lg shadow-white/5"
+                                                        : "border-transparent bg-white/[0.03] text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-secondary)]"
                                                 )}
                                             >
                                                 {style === 'cards' ? 'Cards (Grid)' : 'Floating Dock'}
@@ -178,7 +178,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
 
                                 <section className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(211, 212, 217, 0.4)' }}>Intensidade do Vidro</h4>
+                                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--text-muted)' }}>Intensidade do Vidro</h4>
                                     </div>
                                     <div className="grid grid-cols-3 gap-2">
                                         {(['crystal', 'frosted', 'solid'] as const).map((style) => (
@@ -188,8 +188,8 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                 className={cn(
                                                     "py-3 px-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border-2",
                                                     (preferences.glassStyle || 'frosted') === style
-                                                        ? "border-[#4B88A2] bg-[#4B88A2]/10 text-[#FFF9FB] shadow-lg shadow-[#4B88A2]/10"
-                                                        : "border-transparent bg-white/[0.03] text-[#D3D4D9]/40 hover:bg-white/5 hover:text-[#D3D4D9]/80"
+                                                        ? "border-[var(--accent-solid)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-lg shadow-white/5"
+                                                        : "border-transparent bg-white/[0.03] text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-secondary)]"
                                                 )}
                                             >
                                                 {style === 'crystal' ? 'Cristalino' : style === 'frosted' ? 'Fosco' : 'Sólido'}
@@ -198,7 +198,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                     </div>
                                 </section>
 
-                                <div className="pt-6 border-t border-[#4B88A2]/10">
+                                <div className="pt-6 border-t border-[var(--accent-soft)]">
                                     <button
                                         onClick={resetPreferences}
                                         className="w-full p-4 rounded-2xl text-xs font-bold tracking-[0.2em] uppercase text-white/40 hover:text-white hover:bg-white/5 transition-colors"
