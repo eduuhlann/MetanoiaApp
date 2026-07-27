@@ -3,23 +3,18 @@
 -- Execute este arquivo no SQL Editor do Supabase
 -- ============================================
 
--- 1. Adicionar colunas na tabela profiles
+-- 0. Criar tabela profiles (se nao existir)
 -- ============================================
-ALTER TABLE profiles
-  ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member'
-  CHECK (role IN ('leader', 'member'));
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT UNIQUE DEFAULT '',
+  display_name TEXT DEFAULT '',
+  avatar_url TEXT,
+  bio TEXT,
+  discord_decoration_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
-ALTER TABLE profiles
-  ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
-
-ALTER TABLE profiles
-  ADD COLUMN IF NOT EXISTS banner_url TEXT;
-
-ALTER TABLE profiles
-  ADD COLUMN IF NOT EXISTS birth_date DATE;
-
--- 1.1 RLS para profiles (permitir leitura de todos os perfis)
--- ============================================
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
@@ -52,6 +47,47 @@ DO $$ BEGIN
       WITH CHECK (auth.uid() = id);
   END IF;
 END $$;
+
+-- Trigger: criar profile automaticamente ao cadastrar usuario e sincronizar avatar
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, username, display_name, avatar_url)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'preferred_username',
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'picture')
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    avatar_url = COALESCE(
+      EXCLUDED.avatar_url,
+      profiles.avatar_url
+    );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT OR UPDATE ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_new_user();
+
+-- 1. Adicionar colunas na tabela profiles
+-- ============================================
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member'
+  CHECK (role IN ('leader', 'member'));
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS banner_url TEXT;
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS birth_date DATE;
 
 -- 2. Criar tabela events
 -- ============================================
@@ -608,40 +644,6 @@ CREATE POLICY "Users can delete own event photos storage"
   USING (bucket_id = 'event-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- ============================================
--- 18. Sync OAuth avatar to profiles
--- ============================================
-
--- Function to sync avatar from auth.users metadata to profiles
-CREATE OR REPLACE FUNCTION sync_oauth_avatar()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.raw_user_meta_data->>'avatar_url' IS NOT NULL
-     AND (OLD IS NULL OR OLD.raw_user_meta_data->>'avatar_url' IS DISTINCT FROM NEW.raw_user_meta_data->>'avatar_url')
-  THEN
-    UPDATE profiles
-    SET avatar_url = NEW.raw_user_meta_data->>'avatar_url'
-    WHERE id = NEW.id
-      AND (avatar_url IS NULL OR avatar_url = '');
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT OR UPDATE ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION sync_oauth_avatar();
-
--- Backfill: set avatar_url for existing users who have no avatar
-UPDATE profiles p
-SET avatar_url = u.raw_user_meta_data->>'avatar_url'
-FROM auth.users u
-WHERE p.id = u.id
-  AND (p.avatar_url IS NULL OR p.avatar_url = '')
-  AND u.raw_user_meta_data->>'avatar_url' IS NOT NULL;
-
--- ============================================
 -- 17. Devotional scheduled_for + Journal
 -- ============================================
 DO $$
@@ -686,4 +688,16 @@ CREATE POLICY "Users can delete own journal entries"
 -- 19. Adicionar notifications_seen_at para controle de notificações lidas
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS notifications_seen_at TIMESTAMPTZ DEFAULT now();
+
+-- Backfill: criar profiles para usuarios existentes que ainda nao tem
+INSERT INTO public.profiles (id, username, display_name, avatar_url)
+SELECT
+  u.id,
+  u.raw_user_meta_data->>'preferred_username',
+  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name'),
+  COALESCE(u.raw_user_meta_data->>'avatar_url', u.raw_user_meta_data->>'picture')
+FROM auth.users u
+LEFT JOIN public.profiles p ON p.id = u.id
+WHERE p.id IS NULL
+ON CONFLICT (id) DO NOTHING;
 
