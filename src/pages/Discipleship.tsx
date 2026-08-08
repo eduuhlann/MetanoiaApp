@@ -36,12 +36,19 @@ import {
     Flame,
     Award,
     Pencil,
-    Copy
+    Copy,
+    CalendarPlus,
+    DoorOpen,
+    KeyRound,
+    LayoutDashboard,
+    RefreshCw,
+    Link as LinkIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { discipleshipService, DiscipleshipTask, DiscipleshipNote } from '../services/features/discipleshipService';
+import { communityService, DiscipleshipMeeting, LeaderOverview } from '../services/features/communityService';
 import { statsService, BibleStats } from '../services/features/statsService';
 import { STATIC_BOOKS } from '../services/bible/staticBibleData';
 import PageTransition from '../components/PageTransition';
@@ -77,6 +84,28 @@ const Discipleship: React.FC = () => {
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void | Promise<void> }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
     const [alertBanner, setAlertBanner] = useState<{ isOpen: boolean, message: string, type: 'error' | 'success' }>({ isOpen: false, message: '', type: 'error' });
     const [isSending, setIsSending] = useState(false);
+
+    // Meetings (#56)
+    const [isMeetingsModalOpen, setIsMeetingsModalOpen] = useState(false);
+    const [meetings, setMeetings] = useState<DiscipleshipMeeting[]>([]);
+    const [meetingTitle, setMeetingTitle] = useState('');
+    const [meetingDate, setMeetingDate] = useState('');
+    const [meetingTime, setMeetingTime] = useState('');
+    const [meetingLocation, setMeetingLocation] = useState('');
+    const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+
+    // Group invite code (#64)
+    const [inviteCode, setInviteCode] = useState('');
+    const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
+    const [copiedInvite, setCopiedInvite] = useState(false);
+    const [joinCode, setJoinCode] = useState('');
+    const [isJoinGroupModalOpen, setIsJoinGroupModalOpen] = useState(false);
+    const [isJoiningGroup, setIsJoiningGroup] = useState(false);
+
+    // Leader overview (#66)
+    const [leaderOverview, setLeaderOverview] = useState<LeaderOverview | null>(null);
+    const [isLeaderOverviewOpen, setIsLeaderOverviewOpen] = useState(false);
+    const [isLoadingOverview, setIsLoadingOverview] = useState(false);
 
     // Data States
     const [connections, setConnections] = useState<any[]>([]);
@@ -131,6 +160,13 @@ const Discipleship: React.FC = () => {
         document.addEventListener('click', handleClick);
         return () => document.removeEventListener('click', handleClick);
     }, [contextMenuNoteId]);
+
+    useEffect(() => {
+        if (isGroupMembersModalOpen && selectedConnection?.type === 'group') {
+            openInviteCode();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isGroupMembersModalOpen]);
 
     const getProfile = (p: any) => {
         if (!p) return null;
@@ -464,6 +500,7 @@ const Discipleship: React.FC = () => {
         setIsCreatingGroup(true);
         try {
             const groupId = await discipleshipService.createGroup(user.id, newGroupName);
+            await communityService.ensureGroupInviteCode(groupId);
             setNewGroupName('');
             setIsGroupModalOpen(false);
             loadConnections();
@@ -497,6 +534,122 @@ const Discipleship: React.FC = () => {
                 }
             }
         });
+    };
+
+    // ---------- Meetings (#56) ----------
+    const loadMeetings = async () => {
+        if (!selectedConnection || selectedConnection.type !== 'group') return;
+        const data = await communityService.getGroupMeetings(selectedConnection.id);
+        setMeetings(data);
+    };
+
+    const openMeetingsModal = async () => {
+        if (!selectedConnection || selectedConnection.type !== 'group') return;
+        setMeetings([]);
+        setIsMeetingsModalOpen(true);
+        await loadMeetings();
+    };
+
+    const handleCreateMeeting = async () => {
+        if (!user || !selectedConnection || selectedConnection.type !== 'group' || !meetingTitle.trim() || !meetingDate) return;
+        setIsCreatingMeeting(true);
+        try {
+            const scheduledAt = new Date(`${meetingDate}T${meetingTime || '19:00'}:00`).toISOString();
+            await communityService.createMeeting(selectedConnection.id, user.id, meetingTitle.trim(), scheduledAt, meetingLocation.trim() || undefined);
+            setMeetingTitle(''); setMeetingDate(''); setMeetingTime(''); setMeetingLocation('');
+            await loadMeetings();
+            setAlertBanner({ isOpen: true, message: 'Reunião agendada!', type: 'success' });
+        } catch (error) {
+            setAlertBanner({ isOpen: true, message: 'Erro ao agendar reunião.', type: 'error' });
+        } finally {
+            setIsCreatingMeeting(false);
+        }
+    };
+
+    const handleDeleteMeeting = async (meetingId: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Cancelar Reunião',
+            message: 'Tem certeza que deseja cancelar esta reunião?',
+            onConfirm: async () => {
+                try {
+                    await communityService.deleteMeeting(meetingId);
+                    await loadMeetings();
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                } catch (error) {
+                    setAlertBanner({ isOpen: true, message: 'Erro ao cancelar reunião.', type: 'error' });
+                }
+            }
+        });
+    };
+
+    // ---------- Group invite code (#64) ----------
+    const openInviteCode = async () => {
+        if (!selectedConnection || selectedConnection.type !== 'group') return;
+        setCopiedInvite(false);
+        try {
+            const code = await communityService.ensureGroupInviteCode(selectedConnection.id);
+            setInviteCode(code);
+        } catch (error) {
+            setAlertBanner({ isOpen: true, message: 'Erro ao gerar código de convite.', type: 'error' });
+        }
+    };
+
+    const handleCopyInvite = async () => {
+        try {
+            await navigator.clipboard.writeText(inviteCode);
+            setCopiedInvite(true);
+            setTimeout(() => setCopiedInvite(false), 2000);
+        } catch (error) { }
+    };
+
+    const handleRegenerateInviteCode = async () => {
+        if (!selectedConnection || selectedConnection.type !== 'group') return;
+        setIsRegeneratingCode(true);
+        try {
+            const code = await communityService.regenerateGroupInviteCode(selectedConnection.id);
+            setInviteCode(code);
+            setCopiedInvite(false);
+        } catch (error) {
+            setAlertBanner({ isOpen: true, message: 'Erro ao regenerar código.', type: 'error' });
+        } finally {
+            setIsRegeneratingCode(false);
+        }
+    };
+
+    const handleJoinGroupByCode = async () => {
+        if (!user || !joinCode.trim()) return;
+        setIsJoiningGroup(true);
+        try {
+            const group = await communityService.joinGroupByCode(joinCode, user.id);
+            if (!group) {
+                setAlertBanner({ isOpen: true, message: 'Código inválido. Verifique e tente novamente.', type: 'error' });
+                return;
+            }
+            setJoinCode('');
+            setIsJoinGroupModalOpen(false);
+            loadConnections();
+            setAlertBanner({ isOpen: true, message: `Você entrou em ${group.name}!`, type: 'success' });
+        } catch (error) {
+            setAlertBanner({ isOpen: true, message: 'Erro ao entrar no grupo.', type: 'error' });
+        } finally {
+            setIsJoiningGroup(false);
+        }
+    };
+
+    // ---------- Leader overview (#66) ----------
+    const openLeaderOverview = async () => {
+        if (!user) return;
+        setIsLeaderOverviewOpen(true);
+        setIsLoadingOverview(true);
+        try {
+            const data = await communityService.getLeaderOverview(user.id);
+            setLeaderOverview(data);
+        } catch (error) {
+            setLeaderOverview(null);
+        } finally {
+            setIsLoadingOverview(false);
+        }
     };
 
     const handleRemoveMember = async (targetUserId: string, targetUsername: string) => {
@@ -834,7 +987,7 @@ const Discipleship: React.FC = () => {
 
     return (
         <PageTransition>
-            <div className="h-screen text-white flex flex-col font-sans overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+            <div className="h-dvh text-white flex flex-col font-sans overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
                 {/* Modals handled same as before... (Search, Group Creation) */}
                 <AnimatePresence>
                     {isSearchOpen && (
@@ -925,15 +1078,17 @@ const Discipleship: React.FC = () => {
 
                     {/* Sidebar */}
                     <aside className={cn("w-full md:w-[380px] border-r flex flex-col transition-all", view === 'chat' ? 'hidden md:flex' : 'flex')} style={{ borderColor: 'var(--border)' }}>
-                        <header className="p-6 space-y-6">
+                        <header className="p-4 md:p-6 space-y-4 md:space-y-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     <button onClick={() => navigate('/dashboard')} className="p-2.5 rounded-2xl transition-all hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)' }}><ArrowLeft className="w-5 h-5" /></button>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} className="p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Chat Privado"><MessageSquarePlus className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
-                                    <button onClick={() => setIsGroupModalOpen(true)} className="p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Grupo"><Users className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
-                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="p-3 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-xl"><Plus className="w-5 h-5" /></button>
+                                <div className="flex items-center gap-1.5 md:gap-2">
+                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Chat Privado"><MessageSquarePlus className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+                                    <button onClick={() => setIsGroupModalOpen(true)} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Grupo"><Users className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+                                    <button onClick={() => setIsJoinGroupModalOpen(true)} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Entrar com código"><DoorOpen className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+                                    <button onClick={openLeaderOverview} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Visão do Líder"><LayoutDashboard className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+                                    <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="p-2.5 md:p-3 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-xl"><Plus className="w-5 h-5" /></button>
                                 </div>
                             </div>
                         </header>
@@ -999,33 +1154,33 @@ const Discipleship: React.FC = () => {
                                     <div className="flex items-center gap-4">
                                         <button onClick={() => setView('list')} className="md:hidden p-2.5 rounded-xl" style={{ background: 'var(--bg-card)' }}><ArrowLeft className="w-5 h-5" /></button>
                                         <div className="flex items-center gap-3">
-                                            <div className="relative group/avatar">
-                                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                                                    {selectedConnection.type === 'group' ? (
-                                                        selectedConnection.avatar_url ? <img src={selectedConnection.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-muted)' }} />
-                                                    ) : selectedConnection.profile?.avatar_url ? (
-                                                        <img src={selectedConnection.profile.avatar_url} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <User className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-dim)' }} />
-                                                    )}
-                                                </div>
-                                                {selectedConnection.type === 'group' && selectedConnection.leader_id === user?.id && (
-                                                    <button
-                                                        onClick={() => {
-                                                            const input = document.createElement('input');
-                                                            input.type = 'file';
-                                                            input.accept = 'image/*,image/gif';
-                                                            input.onchange = (e: any) => handleFileUpload(e, true);
-                                                            input.click();
-                                                        }}
-                                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center rounded-full"
-                                                    >
-                                                        <ImageIcon className="w-4 h-4 text-white" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-sm md:text-xl tracking-tight leading-tight">{selectedConnection.name || selectedConnection.profile?.display_name || selectedConnection.profile?.username}</h3>
+                                                    <div className="relative group/avatar">
+                                                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                                                            {selectedConnection.type === 'group' ? (
+                                                                selectedConnection.avatar_url ? <img src={selectedConnection.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-muted)' }} />
+                                                            ) : selectedConnection.profile?.avatar_url ? (
+                                                                <img src={selectedConnection.profile.avatar_url} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <User className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-dim)' }} />
+                                                            )}
+                                                        </div>
+                                                        {selectedConnection.type === 'group' && selectedConnection.leader_id === user?.id && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    const input = document.createElement('input');
+                                                                    input.type = 'file';
+                                                                    input.accept = 'image/*,image/gif';
+                                                                    input.onchange = (e: any) => handleFileUpload(e, true);
+                                                                    input.click();
+                                                                }}
+                                                                className="absolute inset-0 bg-black/60 opacity-100 md:opacity-0 md:group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center rounded-full"
+                                                            >
+                                                                <ImageIcon className="w-4 h-4 text-white" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-bold text-sm md:text-xl tracking-tight leading-tight truncate">{selectedConnection.name || selectedConnection.profile?.display_name || selectedConnection.profile?.username}</h3>
                                                 <div className="flex items-center gap-2">
                                                     {selectedConnection.type === 'group' ? (
                                                         <div 
@@ -1055,6 +1210,11 @@ const Discipleship: React.FC = () => {
                                         {selectedConnection.type === 'group' && selectedConnection.leader_id === user!.id && (
                                             <button onClick={() => { setSearchMode('group'); setIsSearchOpen(true); }} className="p-2.5 md:p-3 hover:opacity-80 rounded-2xl transition-all border" style={{ background: 'var(--border)', borderColor: 'var(--border-strong)' }}>
                                                 <UserPlus className="w-5 h-5" style={{ color: 'var(--accent-solid)' }} />
+                                            </button>
+                                        )}
+                                        {selectedConnection.type === 'group' && (
+                                            <button onClick={openMeetingsModal} className="p-2.5 md:p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border border-white/10" title="Reuniões do Grupo">
+                                                <CalendarPlus className="w-5 h-5 text-white/60" />
                                             </button>
                                         )}
                                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2.5 md:p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/5">
@@ -1392,9 +1552,9 @@ const Discipleship: React.FC = () => {
                                 </AnimatePresence>
 
                                 {/* Input Area */}
-                                <footer className="p-6 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-4)' }}>
+                                <footer className="p-4 md:p-6 pt-3 pb-[max(env(safe-area-inset-bottom),1.25rem)] border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-4)' }}>
                                     <div className="max-w-4xl mx-auto flex gap-3 items-end">
-                                        <div className="relative">
+                                        <div className="relative shrink-0">
                                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" />
                                             <button onClick={() => fileInputRef.current?.click()} disabled={isUploading || isSending} className="p-4 rounded-[24px] transition-all disabled:opacity-50" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                                                 {isUploading || isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
@@ -1444,6 +1604,38 @@ const Discipleship: React.FC = () => {
                                     </div>
                                     <button onClick={() => setIsGroupMembersModalOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
                                 </div>
+                                {selectedConnection.leader_id === user?.id && (
+                                    <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <KeyRound className="w-4 h-4 text-white/50" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Código de Convite</span>
+                                            </div>
+                                            <button
+                                                onClick={handleRegenerateInviteCode}
+                                                disabled={isRegeneratingCode}
+                                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/80"
+                                                title="Gerar novo código"
+                                            >
+                                                {isRegeneratingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <code className="flex-1 text-center text-lg font-black tracking-[0.3em] py-2.5 rounded-xl bg-black/40 border border-dashed border-white/15" style={{ color: 'var(--accent-solid)' }}>
+                                                {inviteCode || '······'}
+                                            </code>
+                                            <button
+                                                onClick={handleCopyInvite}
+                                                className="p-2.5 rounded-xl hover:bg-white/10 transition-colors"
+                                                style={{ background: 'var(--border)' }}
+                                                title="Copiar código"
+                                            >
+                                                {copiedInvite ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] text-white/30 mt-2 text-center">Compartilhe este código para que outros entrem no grupo</p>
+                                    </div>
+                                )}
                                 <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                     {groupMembers.length === 0 ? (
                                         <div className="text-center py-12 opacity-20">
@@ -1522,6 +1714,145 @@ const Discipleship: React.FC = () => {
                 </AnimatePresence>
 
 
+
+                <AnimatePresence>
+                    {isJoinGroupModalOpen && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <DoorOpen className="w-5 h-5 text-white/60" />
+                                        <h3 className="text-xl font-bold tracking-tight">Entrar com código</h3>
+                                    </div>
+                                    <button onClick={() => setIsJoinGroupModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                                </div>
+                                <div className="p-6 space-y-6">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Código do grupo</label>
+                                        <input
+                                            type="text"
+                                            autoFocus
+                                            placeholder="EX: ABCD1234"
+                                            value={joinCode}
+                                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') handleJoinGroupByCode(); }}
+                                            className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-center text-xl font-black tracking-[0.3em] uppercase focus:ring-0 focus:border-white/30 transition-all font-medium"
+                                        />
+                                        <p className="text-[10px] text-white/30 ml-1">Peça o código a um líder do grupo</p>
+                                    </div>
+                                    <button onClick={handleJoinGroupByCode} disabled={!joinCode.trim() || isJoiningGroup} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {isJoiningGroup ? (<><Loader2 className="w-4 h-4 animate-spin" /> ENTRANDO...</>) : 'Entrar no Grupo'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {isMeetingsModalOpen && selectedConnection?.type === 'group' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <CalendarPlus className="w-5 h-5 text-white/60" />
+                                        <h3 className="text-xl font-bold tracking-tight">Reuniões do Grupo</h3>
+                                    </div>
+                                    <button onClick={() => setIsMeetingsModalOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
+                                </div>
+                                <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-1 gap-2">
+                                            <input type="text" placeholder="Título da reunião" value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium" />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input type="date" value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} className="bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm [color-scheme:dark] focus:ring-0" />
+                                                <input type="time" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} className="bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm [color-scheme:dark] focus:ring-0" />
+                                            </div>
+                                            <input type="text" placeholder="Local (opcional)" value={meetingLocation} onChange={(e) => setMeetingLocation(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-xl py-3 px-4 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium" />
+                                        </div>
+                                        <button onClick={handleCreateMeeting} disabled={!meetingTitle.trim() || !meetingDate || isCreatingMeeting} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                            {isCreatingMeeting ? (<><Loader2 className="w-4 h-4 animate-spin" /> AGENDANDO...</>) : (<><CalendarPlus className="w-4 h-4" /> Agendar Reunião</>)}
+                                        </button>
+                                    </div>
+                                    <div className="h-px bg-white/10" />
+                                    {meetings.length === 0 ? (
+                                        <p className="text-center text-sm text-white/40 py-8">Nenhuma reunião agendada</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {meetings.map(m => {
+                                                const date = new Date(m.scheduled_at);
+                                                const past = date.getTime() < Date.now();
+                                                return (
+                                                    <div key={m.id} className={cn("p-4 rounded-2xl border", past ? "opacity-50 border-white/5" : "border-white/10")} style={{ background: 'var(--surface-3)' }}>
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div>
+                                                                <p className="text-sm font-bold">{m.title}</p>
+                                                                <p className="text-[11px] text-white/40 mt-1 flex items-center gap-1.5">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    {date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })} às {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </p>
+                                                                {m.location && <p className="text-[11px] text-white/40 mt-0.5 flex items-center gap-1.5"><LinkIcon className="w-3 h-3" /> {m.location}</p>}
+                                                            </div>
+                                                            {(selectedConnection.leader_id === user?.id || m.creator_id === user?.id) && (
+                                                                <button onClick={() => handleDeleteMeeting(m.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400/70 hover:text-red-400 transition-colors" title="Cancelar reunião">
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {isLeaderOverviewOpen && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <LayoutDashboard className="w-5 h-5 text-white/60" />
+                                        <h3 className="text-xl font-bold tracking-tight">Visão do Líder</h3>
+                                    </div>
+                                    <button onClick={() => setIsLeaderOverviewOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    {isLoadingOverview ? (
+                                        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-white/40" /></div>
+                                    ) : leaderOverview ? (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {[
+                                                    { label: 'Grupos', value: leaderOverview.groups, icon: <Users className="w-4 h-4" /> },
+                                                    { label: 'Membros', value: leaderOverview.members, icon: <User className="w-4 h-4" /> },
+                                                    { label: 'Convites pendentes', value: leaderOverview.pendingMembers, icon: <UserPlus className="w-4 h-4" /> },
+                                                    { label: 'Desafios abertos', value: leaderOverview.openTasks, icon: <TrendingUp className="w-4 h-4" /> },
+                                                    { label: 'Mensagens não lidas', value: leaderOverview.unreadNotes, icon: <MessageSquare className="w-4 h-4" /> },
+                                                    { label: 'Próximas reuniões', value: leaderOverview.upcomingMeetings, icon: <CalendarPlus className="w-4 h-4" /> }
+                                                ].map(item => (
+                                                    <div key={item.label} className="p-4 rounded-2xl border border-white/10" style={{ background: 'var(--surface-3)' }}>
+                                                        <div className="flex items-center gap-2 text-white/50 mb-2">{item.icon}<span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span></div>
+                                                        <p className="text-3xl font-black italic" style={{ color: 'var(--accent-solid)' }}>{item.value}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button onClick={() => setIsLeaderOverviewOpen(false)} className="w-full py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-white/60 text-xs font-black uppercase tracking-widest transition-all">
+                                                Fechar
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <p className="text-center text-sm text-white/40 py-8">Não foi possível carregar o resumo.</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <AnimatePresence>
                     {confirmModal.isOpen && (

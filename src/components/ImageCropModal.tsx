@@ -76,14 +76,14 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
             exit={{ opacity: 0, scale: 0.98 }}
             className="relative w-full h-full flex flex-col overflow-hidden"
           >
-            <div className="px-8 py-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)] font-sans">
+            <div className="px-4 md:px-8 py-4 md:py-6 flex items-center justify-between">
+              <h2 className="text-lg md:text-xl font-bold tracking-tight text-[var(--text-primary)] font-sans">
                 {title}
               </h2>
             </div>
 
-            <div className="relative flex-1 bg-[var(--surface-3)] flex items-center justify-center p-4 md:p-12">
-              <div className="relative w-full max-w-5xl border border-white/5 shadow-2xl overflow-hidden bg-black/40" style={{ aspectRatio: `${aspect}` }}>
+            <div className="relative flex-1 min-h-0 bg-[var(--surface-3)] flex items-center justify-center p-3 md:p-12">
+              <div className="relative w-full max-w-5xl max-h-[65dvh] border border-white/5 shadow-2xl overflow-hidden bg-black/40" style={{ aspectRatio: `${aspect}` }}>
                 <Cropper
                   image={image}
                   crop={crop}
@@ -104,7 +104,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                   <div className="absolute inset-0 pointer-events-none z-10">
                      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[60.3%] border-x border-sky-400/50 bg-sky-400/5 relative group">
                         <div className="absolute top-2 left-2">
-                           <span className="bg-[var(--surface-5)]/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold text-white/90 whitespace-nowrap">
+                           <span className="bg-[var(--surface-5)]/80 backdrop-blur-sm px-2.5 py-1.5 rounded-full text-[9px] font-bold text-white/90 whitespace-nowrap">
                                Visível em todos os dispositivos
                            </span>
                         </div>

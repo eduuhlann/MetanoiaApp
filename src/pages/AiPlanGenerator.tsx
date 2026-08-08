@@ -393,8 +393,8 @@ export default function AiPlanGenerator() {
     };
 
     return (
-        <div className="min-h-screen text-white selection:bg-[var(--accent-soft)] selection:text-white relative overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-            <header className="fixed top-0 left-0 right-0 p-6 md:p-12 z-50 flex justify-between items-center pointer-events-none">
+        <div className="min-h-dvh text-white selection:bg-[var(--accent-soft)] selection:text-white relative overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+            <header className="fixed top-0 left-0 right-0 p-6 pt-[max(env(safe-area-inset-top),1.5rem)] md:p-12 md:pt-[max(env(safe-area-inset-top),3rem)] z-50 flex justify-between items-center pointer-events-none">
                 {currentStep !== 'generating' && currentStep !== 'success' ? (
                     <button
                         onClick={handleBack}
@@ -411,7 +411,7 @@ export default function AiPlanGenerator() {
                 </div>
             </header>
 
-            <main className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 py-24">
+            <main className="relative z-10 min-h-dvh flex flex-col items-center justify-center px-4 sm:px-6 py-24">
                 <div className="w-full max-w-xl">
 
                     {currentStep !== 'generating' && currentStep !== 'success' && (

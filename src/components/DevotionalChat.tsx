@@ -149,9 +149,9 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
     const dailyReadings = group?.devotional?.daily_readings;
 
     return (
-        <div className="flex flex-col h-screen" style={{ background: 'var(--bg-primary)' }}>
+        <div className="flex flex-col h-dvh" style={{ background: 'var(--bg-primary)' }}>
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)' }}>
+            <div className="flex items-center gap-3 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)' }}>
                 <button onClick={onBack} className="p-2 rounded-xl transition-colors hover:bg-white/5" style={{ color: 'var(--text-secondary)' }}>
                     <ArrowLeft size={20} />
                 </button>
@@ -265,7 +265,7 @@ export default function DevotionalChat({ groupId, onBack }: Props) {
             </div>
 
             {/* Input */}
-            <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)' }}>
+            <div className="px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)', backdropFilter: 'blur(20px)' }}>
                 <div className="flex items-center gap-2">
                     <input
                         ref={inputRef}

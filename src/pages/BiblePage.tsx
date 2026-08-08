@@ -105,10 +105,41 @@ const BiblePage: React.FC = () => {
         }
     };
 
-    const filteredBooks = books.filter(b =>
-        b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.abbrev.pt.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    const fuzzyScore = (text: string, query: string): number => {
+        const t = normalize(text);
+        const q = normalize(query);
+        if (!q) return 1;
+        if (t.includes(q)) return 1000 - t.indexOf(q);
+        let qi = 0;
+        let score = 0;
+        for (let i = 0; i < t.length && qi < q.length; i++) {
+            if (t[i] === q[qi]) { score += 1; qi++; }
+        }
+        return qi === q.length ? score : -1;
+    };
+
+    const filteredBooks = books
+        .map(b => ({ book: b, score: Math.max(fuzzyScore(b.name, searchQuery), fuzzyScore(b.abbrev.pt, searchQuery)) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.book);
+
+    const highlightMatch = (text: string) => {
+        if (!searchQuery.trim()) return text;
+        const normText = normalize(text);
+        const normQuery = normalize(searchQuery);
+        const idx = normText.indexOf(normQuery);
+        if (idx === -1) return text;
+        return (
+            <>
+                {text.slice(0, idx)}
+                <span className="text-[var(--accent-solid)]">{text.slice(idx, idx + searchQuery.length)}</span>
+                {text.slice(idx + searchQuery.length)}
+            </>
+        );
+    };
 
     const testaments = {
         VT: filteredBooks.filter(b => b.testament === 'VT'),
@@ -169,7 +200,7 @@ const BiblePage: React.FC = () => {
     );
 
     const Header = ({ children }: { children?: React.ReactNode }) => (
-        <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5 px-6 py-4">
+        <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5 px-4 sm:px-6 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 sm:py-4">
             <div className="max-w-4xl mx-auto flex items-center justify-between">
                 {children}
             </div>
@@ -178,13 +209,13 @@ const BiblePage: React.FC = () => {
 
     if (!bookAbbrev) {
         return (
-            <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
+            <div className="min-h-dvh bg-black text-white font-sans selection:bg-white selection:text-black">
                 <Header>
                     <div className="flex items-center gap-4">
-                        <Link to="/dashboard" className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                        <Link to="/dashboard" className="p-3 hover:bg-white/5 rounded-full transition-colors -ml-2">
                             <HomeIcon className="w-5 h-5" />
                         </Link>
-                        <h1 className="text-xl font-bold tracking-tight">Bíblia Sagrada</h1>
+                        <h1 className="text-lg md:text-xl font-bold tracking-tight">Bíblia Sagrada</h1>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="relative w-48 hidden md:block">
@@ -201,7 +232,24 @@ const BiblePage: React.FC = () => {
                     </div>
                 </Header>
 
-                <div className="max-w-4xl mx-auto px-6 pt-28 pb-24">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-28 pb-24">
+                    <div className="md:hidden relative mb-6">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 w-4 h-4" />
+                        <input
+                            type="text"
+                            placeholder="Pesquisar livro..."
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-10 pr-4 focus:outline-none focus:border-white/30 transition-all text-sm"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    {searchQuery.trim() && filteredBooks.length === 0 && (
+                        <div className="py-16 text-center">
+                            <BookOpen className="w-10 h-10 mx-auto mb-4 text-white/20" />
+                            <p className="text-white/50 font-bold">Nenhum livro encontrado para "{searchQuery}"</p>
+                            <p className="text-white/30 text-sm mt-1">Tente outro termo ou um trecho do nome (ex: "jo" → João).</p>
+                        </div>
+                    )}
                     <div className="space-y-16">
                         {[
                             { label: 'Velho Testamento', books: testaments.VT },
@@ -217,9 +265,9 @@ const BiblePage: React.FC = () => {
                                         <Link
                                             key={b.abbrev.pt}
                                             to={`/bible/${b.abbrev.pt}`}
-                                            className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.07] hover:border-white/15 transition-all active:scale-95"
+                                            className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.07] hover:border-white/15 transition-all active:scale-95 min-w-0"
                                         >
-                                            <p className="text-base font-bold group-hover:text-white transition-colors">{b.name}</p>
+                                            <p className="text-sm sm:text-base font-bold group-hover:text-white transition-colors break-words leading-snug">{highlightMatch(b.name)}</p>
                                             <p className="text-[10px] text-white/25 font-bold uppercase tracking-widest mt-1">{b.chapters} Cap.</p>
                                         </Link>
                                     ))}
@@ -234,10 +282,10 @@ const BiblePage: React.FC = () => {
 
     if (bookAbbrev && !chapterNum) {
         return (
-            <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black">
+            <div className="min-h-dvh bg-black text-white font-sans selection:bg-white selection:text-black">
                 <Header>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => navigate('/bible')} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                        <button onClick={() => navigate('/bible')} className="p-3 hover:bg-white/5 rounded-full transition-colors -ml-2">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div>
@@ -282,18 +330,18 @@ const BiblePage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans selection:bg-white/20 selection:text-white">
+        <div className="min-h-dvh bg-black text-white font-sans selection:bg-white/20 selection:text-white">
             <Header>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate(`/bible/${bookAbbrev}`)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                    <button onClick={() => navigate(`/bible/${bookAbbrev}`)} className="p-3 hover:bg-white/5 rounded-full transition-colors -ml-2">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <div>
-                        <h2 className="text-base font-bold flex items-center gap-2">
+                    <div className="min-w-0">
+                        <h2 className="text-base font-bold flex items-center gap-2 truncate">
                             {selectedBook?.name} {chapterNum}
-                            <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white/60 uppercase">{currentVersion}</span>
+                            <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white/60 uppercase shrink-0">{currentVersion}</span>
                         </h2>
-                        {chapterTitle && <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{chapterTitle}</p>}
+                        {chapterTitle && <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest truncate">{chapterTitle}</p>}
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -304,7 +352,7 @@ const BiblePage: React.FC = () => {
                     <button onClick={() => navigateToChapter('next')} disabled={chapterNum === selectedBook?.chapters} className="p-2 hover:bg-white/5 rounded-full transition-colors disabled:opacity-20 hidden sm:block">
                         <ChevronRight className="w-5 h-5" />
                     </button>
-                    <button onClick={() => setShowSettings(!showSettings)} className="p-2 hover:bg-white/5 rounded-full transition-colors ml-1">
+                    <button onClick={() => setShowSettings(!showSettings)} className="p-3 hover:bg-white/5 rounded-full transition-colors">
                         <Settings className="w-5 h-5 text-white/60" />
                     </button>
                 </div>
@@ -320,7 +368,7 @@ const BiblePage: React.FC = () => {
                         />
                         <motion.div
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                            className="fixed bottom-0 left-0 right-0 z-[70] bg-[var(--surface-2)] border-t border-white/10 rounded-t-3xl p-8 shadow-2xl"
+                            className="fixed bottom-0 left-0 right-0 z-[70] bg-[var(--surface-2)] border-t border-white/10 rounded-t-3xl p-6 sm:p-8 pb-[max(env(safe-area-inset-bottom),1.5rem)] shadow-2xl"
                         >
                             <div className="max-w-sm mx-auto space-y-8">
                                 <div>
@@ -363,13 +411,13 @@ const BiblePage: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            <main className="max-w-2xl mx-auto px-6 pt-28 pb-40">
+            <main className="max-w-2xl mx-auto px-4 sm:px-6 pt-28 pb-40">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-48">
                         <Loading fullScreen={false} />
                     </div>
                 ) : error ? (
-                    <div className="bg-white/5 border border-white/10 p-10 rounded-3xl text-center">
+                    <div className="bg-white/5 border border-white/10 p-6 sm:p-10 rounded-3xl text-center">
                         <p className="text-white/60 font-bold text-lg mb-6">{error}</p>
                         <button
                             onClick={() => loadChapter(bookAbbrev!, chapterNum!, currentVersion)}
@@ -392,7 +440,7 @@ const BiblePage: React.FC = () => {
                     >
                         <div className="text-center mb-12">
                             <span className="text-[10px] font-black tracking-[0.4em] text-white/20 uppercase">{selectedBook?.name}</span>
-                            <h1 className="text-8xl font-black opacity-10 tracking-tighter mt-1">{chapterNum}</h1>
+                            <h1 className="text-6xl md:text-8xl font-black opacity-10 tracking-tighter mt-1">{chapterNum}</h1>
                         </div>
 
                         {insight && (
@@ -435,11 +483,11 @@ const BiblePage: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="space-y-4 pl-10 pr-4 md:pr-0">
+                        <div className="space-y-4 pl-8 pr-4 md:pr-0">
                             {chapterData.verses.map(v => (
                                 <div key={v.number} className="group relative flex items-start gap-4">
                                     <div className="flex-1 relative">
-                                        <span className="absolute -left-10 top-1 text-xs font-black text-white/15 tabular-nums select-none">{v.number}</span>
+                                        <span className="absolute -left-8 top-1 text-xs font-black text-white/15 tabular-nums select-none">{v.number}</span>
                                         <p className="inline leading-relaxed text-white/80">
                                             {v.number === 1 && (
                                                 <span className="text-5xl font-bold float-left mr-3 mt-1 leading-[0.9] text-white">{v.text.charAt(0)}</span>
@@ -451,22 +499,22 @@ const BiblePage: React.FC = () => {
                             ))}
                         </div>
 
-                        <div className="flex gap-4 pt-20">
+                        <div className="flex gap-3 sm:gap-4 pt-12 sm:pt-20">
                             <button
                                 onClick={() => navigateToChapter('prev')}
                                 disabled={chapterNum === 1}
-                                className="flex-1 bg-white/[0.03] border border-white/5 p-6 rounded-3xl hover:bg-white/[0.07] transition-all text-left disabled:opacity-20"
+                                className="flex-1 bg-white/[0.03] border border-white/5 p-4 sm:p-6 rounded-3xl hover:bg-white/[0.07] transition-all text-left disabled:opacity-20 min-w-0"
                             >
                                 <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Anterior</p>
-                                <p className="text-base font-bold">← Cap. {chapterNum! - 1}</p>
+                                <p className="text-sm sm:text-base font-bold truncate">← Cap. {chapterNum! - 1}</p>
                             </button>
                             <button
                                 onClick={() => navigateToChapter('next')}
                                 disabled={chapterNum === selectedBook?.chapters}
-                                className="flex-1 bg-white/[0.03] border border-white/5 p-6 rounded-3xl hover:bg-white/[0.07] transition-all text-right disabled:opacity-20"
+                                className="flex-1 bg-white/[0.03] border border-white/5 p-4 sm:p-6 rounded-3xl hover:bg-white/[0.07] transition-all text-right disabled:opacity-20 min-w-0"
                             >
                                 <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Próximo</p>
-                                <p className="text-base font-bold">Cap. {chapterNum! + 1} →</p>
+                                <p className="text-sm sm:text-base font-bold truncate">Cap. {chapterNum! + 1} →</p>
                             </button>
                         </div>
                     </motion.article>
@@ -475,7 +523,7 @@ const BiblePage: React.FC = () => {
 
             {!loading && !error && chapterData && (
                 <div className={cn(
-                    "fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300",
+                    "fixed bottom-[max(env(safe-area-inset-bottom),2rem)] left-1/2 -translate-x-1/2 z-50 transition-all duration-300",
                     isExegesisOpen && "opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto md:-translate-x-[calc(50%+225px)]"
                 )}>
                     <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl p-1.5 flex items-center gap-1.5 shadow-2xl">
@@ -489,7 +537,7 @@ const BiblePage: React.FC = () => {
                                     }
                                 }
                             }}
-                            className="flex items-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform"
+                            className="flex items-center gap-2 bg-white text-black px-4 sm:px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform"
                         >
                             <CheckCircle2 className="w-4 h-4" />
                             Marcar como Lido

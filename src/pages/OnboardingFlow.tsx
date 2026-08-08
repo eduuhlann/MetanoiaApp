@@ -50,7 +50,7 @@ export default function OnboardingFlow() {
     };
 
     return (
-        <div className="h-screen flex items-center justify-center overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+        <div className="h-dvh flex items-center justify-center overflow-y-auto overflow-x-hidden" style={{ background: 'var(--bg-primary)' }}>
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 40%, var(--bg-muted) 0%, transparent 70%)' }} />
             </div>
@@ -83,7 +83,7 @@ export default function OnboardingFlow() {
                                 className="flex flex-col items-center text-center"
                             >
                                 <motion.h1
-                                    className="text-5xl md:text-6xl font-outfit font-extrabold tracking-tight mb-4"
+                                    className="text-4xl sm:text-6xl font-outfit font-extrabold tracking-tight mb-4"
                                     style={{ color: 'var(--text-primary)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
@@ -92,7 +92,7 @@ export default function OnboardingFlow() {
                                     Bem-Vindo(a) Ao
                                 </motion.h1>
                                 <motion.h1
-                                    className="text-6xl md:text-7xl font-outfit font-extrabold tracking-tight mb-8"
+                                    className="text-5xl sm:text-7xl font-outfit font-extrabold tracking-tight mb-8"
                                     style={{ color: 'var(--accent-solid)' }}
                                     initial={{ y: 20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}

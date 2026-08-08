@@ -701,3 +701,137 @@ LEFT JOIN public.profiles p ON p.id = u.id
 WHERE p.id IS NULL
 ON CONFLICT (id) DO NOTHING;
 
+-- ============================================
+-- 20. Verificação de membros da igreja
+-- ============================================
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
+
+-- ============================================
+-- 21. Seguir usuários
+-- ============================================
+CREATE TABLE IF NOT EXISTS follows (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  follower_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  following_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(follower_id, following_id)
+);
+
+ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view follows"
+  ON follows FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can follow others"
+  ON follows FOR INSERT
+  WITH CHECK (auth.uid() = follower_id);
+
+CREATE POLICY "Users can unfollow"
+  ON follows FOR DELETE
+  USING (auth.uid() = follower_id);
+
+-- ============================================
+-- 22. Código de convite de grupos de discipulado
+-- ============================================
+ALTER TABLE discipleship_groups
+  ADD COLUMN IF NOT EXISTS invite_code TEXT UNIQUE;
+
+-- ============================================
+-- 23. Reuniões de discipulado
+-- ============================================
+CREATE TABLE IF NOT EXISTS discipleship_meetings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  group_id UUID REFERENCES discipleship_groups(id) ON DELETE CASCADE,
+  creator_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  location TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE discipleship_meetings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Members can view meetings"
+  ON discipleship_meetings FOR SELECT
+  USING (
+    group_id IN (SELECT group_id FROM discipleship_group_members WHERE user_id = auth.uid())
+    OR group_id IN (SELECT id FROM discipleship_groups WHERE leader_id = auth.uid())
+  );
+
+CREATE POLICY "Members can create meetings"
+  ON discipleship_meetings FOR INSERT
+  WITH CHECK (
+    group_id IN (SELECT group_id FROM discipleship_group_members WHERE user_id = auth.uid())
+    OR group_id IN (SELECT id FROM discipleship_groups WHERE leader_id = auth.uid())
+  );
+
+CREATE POLICY "Creators can update meetings"
+  ON discipleship_meetings FOR UPDATE
+  USING (auth.uid() = creator_id);
+
+CREATE POLICY "Creators can delete meetings"
+  ON discipleship_meetings FOR DELETE
+  USING (auth.uid() = creator_id);
+
+-- ============================================
+-- 24. Confirmação de presença em eventos (RSVP)
+-- ============================================
+CREATE TABLE IF NOT EXISTS event_rsvps (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'going' CHECK (status IN ('going', 'maybe', 'not_going')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(event_id, user_id)
+);
+
+ALTER TABLE event_rsvps ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view rsvps"
+  ON event_rsvps FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can rsvp"
+  ON event_rsvps FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own rsvp"
+  ON event_rsvps FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own rsvp"
+  ON event_rsvps FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ============================================
+-- 25. Feed da comunidade (posts e menções)
+-- ============================================
+CREATE TABLE IF NOT EXISTS feed_posts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  type TEXT DEFAULT 'post' CHECK (type IN ('post', 'devotional', 'event')),
+  content TEXT,
+  devotional_id UUID REFERENCES devotionals(id) ON DELETE SET NULL,
+  event_id UUID REFERENCES events(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE feed_posts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view feed posts"
+  ON feed_posts FOR SELECT
+  USING (true);
+
+CREATE POLICY "Authenticated users can post"
+  ON feed_posts FOR INSERT
+  WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Authors can delete own posts"
+  ON feed_posts FOR DELETE
+  USING (auth.uid() = author_id);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE feed_posts;
+

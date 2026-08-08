@@ -9,6 +9,8 @@ import {
     Trash2,
     CheckCircle2,
     User,
+    Users,
+    Check,
     Eye,
     EyeOff,
     ExternalLink,
@@ -20,7 +22,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { supabase } from '../lib/supabase';
+import { communityService } from '../services/features/communityService';
 import PageTransition from '../components/PageTransition';
+import { cn } from '../lib/utils';
 
 interface EventPhoto {
     id: string;
@@ -62,6 +66,11 @@ const EventsPage: React.FC = () => {
     const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
     const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
     const photoInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+
+    // RSVP "Vou" (#82)
+    const [rsvpMap, setRsvpMap] = useState<Record<string, string | null>>({});
+    const [rsvpCounts, setRsvpCounts] = useState<Record<string, number>>({});
+    const [rsvpToggling, setRsvpToggling] = useState<string | null>(null);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -105,10 +114,39 @@ const EventsPage: React.FC = () => {
             }));
 
             setEvents(mapped);
+
+            // RSVP data
+            if (eventIds.length > 0) {
+                const [counts, userRsvps] = await Promise.all([
+                    communityService.getRsvpCounts(eventIds),
+                    user
+                        ? supabase.from('event_rsvps').select('event_id, status').in('event_id', eventIds).eq('user_id', user.id)
+                        : Promise.resolve({ data: null })
+                ]);
+                setRsvpCounts(counts);
+                const map: Record<string, string | null> = {};
+                (userRsvps.data || []).forEach((r: any) => { map[r.event_id] = r.status; });
+                setRsvpMap(map);
+            }
         } catch (err) {
             console.error('Error fetching events:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleRsvp = async (eventId: string) => {
+        if (!user) return;
+        setRsvpToggling(eventId);
+        try {
+            const status = await communityService.toggleRsvp(eventId, user.id);
+            setRsvpMap(prev => ({ ...prev, [eventId]: status }));
+            const counts = await communityService.getRsvpCounts([eventId]);
+            setRsvpCounts(prev => ({ ...prev, ...counts }));
+        } catch (err) {
+            console.error('Error toggling RSVP:', err);
+        } finally {
+            setRsvpToggling(null);
         }
     };
 
@@ -219,7 +257,7 @@ const EventsPage: React.FC = () => {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white p-6 md:p-12 selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
+        <div className="min-h-dvh text-white p-6 md:p-12 selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
             <div className="max-w-4xl mx-auto">
                 <header className="flex items-center justify-between mb-16">
                     <div className="flex items-center gap-4 md:gap-12">
@@ -372,7 +410,7 @@ const EventsPage: React.FC = () => {
                                 className="p-6 rounded-[2rem] group transition-all duration-300"
                                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                             >
-                                <div className="flex items-start gap-6">
+                                <div className="flex items-start gap-4 sm:gap-6">
                                     <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0" style={{ background: 'var(--border)' }}>
                                         <span className="text-[10px] font-black tracking-widest uppercase" style={{ color: 'var(--text-secondary)' }}>{new Date(event.event_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' })}</span>
                                         <span className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{new Date(event.event_date + 'T00:00:00').getDate()}</span>
@@ -398,7 +436,26 @@ const EventsPage: React.FC = () => {
                                                 </a>
                                             )}
                                             <span className="flex items-center gap-1.5"><User size={12} /> {event.author_name}</span>
+                                            <span className="flex items-center gap-1.5"><Users size={12} /> {rsvpCounts[event.id] || 0} confirmados</span>
                                         </div>
+
+                                        {user && (
+                                            <button
+                                                onClick={() => handleToggleRsvp(event.id)}
+                                                disabled={rsvpToggling === event.id}
+                                                className={cn("mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95", rsvpMap[event.id] === 'going' && "opacity-90")}
+                                                style={rsvpMap[event.id] === 'going'
+                                                    ? { background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }
+                                                    : { background: 'var(--bg-card-hover)', color: 'var(--text-muted)' }}
+                                            >
+                                                {rsvpToggling === event.id ? (
+                                                    <div className="w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                                ) : (
+                                                    <Check size={12} className={rsvpMap[event.id] === 'going' ? '' : 'opacity-60'} />
+                                                )}
+                                                {rsvpMap[event.id] === 'going' ? 'Confirmado' : 'Vou'}
+                                            </button>
+                                        )}
 
                                         {/* Map Embed */}
                                         {event.location && (
@@ -429,7 +486,7 @@ const EventsPage: React.FC = () => {
                                                         {user?.id === photo.user_id && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id); }}
-                                                                className="absolute top-1 right-1 p-1 rounded-lg bg-black/50 opacity-0 group-hover/photo:opacity-100 transition-all"
+                                                                className="absolute top-1 right-1 p-1.5 rounded-lg bg-black/50 opacity-100 md:opacity-0 md:group-hover/photo:opacity-100 transition-all"
                                                             >
                                                                 <X size={12} className="text-white" />
                                                             </button>
@@ -478,7 +535,7 @@ const EventsPage: React.FC = () => {
                                     {user?.id === event.author_id && (
                                         <button
                                             onClick={() => handleDeleteEvent(event.id)}
-                                            className="p-3 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                                            className="p-3 rounded-xl transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 active:scale-90"
                                             style={{ color: 'var(--danger)' }}
                                             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--danger-soft)')}
                                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}

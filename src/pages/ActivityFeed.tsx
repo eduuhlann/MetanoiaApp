@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, User, MessageCircle, BookOpen, Search, X, ExternalLink, Shield, Cake } from 'lucide-react';
+import { ArrowLeft, User, Users, MessageCircle, BookOpen, Search, X, ExternalLink, Shield, Cake, BadgeCheck, Heart, Share2, Loader2, Send, Sparkles, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { discipleshipService } from '../services/features/discipleshipService';
+import { communityService, FeedPost } from '../services/features/communityService';
 import { Loading } from '../components/Loading';
 import { cn } from '../lib/utils';
 
@@ -17,6 +18,7 @@ interface MemberProfile {
     bio: string | null;
     role: 'leader' | 'member';
     birth_date: string | null;
+    is_verified?: boolean;
 }
 
 const MembersPage: React.FC = () => {
@@ -29,12 +31,56 @@ const MembersPage: React.FC = () => {
     const [previewMember, setPreviewMember] = useState<MemberProfile | null>(null);
     const [birthdayUsers, setBirthdayUsers] = useState<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; birth_date: string; age: number }[]>([]);
 
+    // Feed da comunidade (#80, #81)
+    const [tab, setTab] = useState<'members' | 'feed'>('members');
+    const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+    const [feedContent, setFeedContent] = useState('');
+    const [isPosting, setIsPosting] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState('');
+    const [mentionIndex, setMentionIndex] = useState(0);
+    const composerRef = useRef<HTMLTextAreaElement>(null);
+
+    // Seguir usuários (#79)
+    const [following, setFollowing] = useState<Set<string>>(new Set());
+    const [followToggling, setFollowToggling] = useState<string | null>(null);
+
+    // Filtros de membros (#89)
+    const [filter, setFilter] = useState<'all' | 'leaders' | 'verified'>('all');
+
+    // Link de convite (#90)
+    const [inviteCopied, setInviteCopied] = useState(false);
+
+    useEffect(() => {
+        if (!user) return;
+        const loadFollowing = async () => {
+            const { data } = await supabase.from('follows').select('following_id').eq('follower_id', user.id);
+            setFollowing(new Set((data || []).map((f: any) => f.following_id)));
+        };
+        loadFollowing();
+    }, [user]);
+
+    useEffect(() => {
+        const loadFeed = async () => {
+            const posts = await communityService.getFeedPosts(50);
+            setFeedPosts(posts);
+        };
+        loadFeed();
+        const channel = supabase
+            .channel('feed-posts-changes')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feed_posts' }, async () => {
+                const posts = await communityService.getFeedPosts(50);
+                setFeedPosts(posts);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, []);
+
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, username, display_name, avatar_url, banner_url, bio, role, birth_date')
+                .select('id, username, display_name, avatar_url, banner_url, bio, role, birth_date, is_verified')
                 .neq('id', user?.id || '')
                 .order('display_name', { ascending: true });
             if (!error && data) setMembers(data);
@@ -82,6 +128,8 @@ const MembersPage: React.FC = () => {
     }, [user]);
 
     const filtered = members.filter(m => {
+        if (filter === 'leaders' && m.role !== 'leader') return false;
+        if (filter === 'verified' && !m.is_verified) return false;
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         return (
@@ -89,6 +137,80 @@ const MembersPage: React.FC = () => {
             m.username?.toLowerCase().includes(q)
         );
     });
+
+    const mentionMatches = useMemo(() => {
+        if (!mentionQuery) return [];
+        const q = mentionQuery.toLowerCase();
+        return members.filter(m => (m.username || '').toLowerCase().includes(q)).slice(0, 5);
+    }, [mentionQuery, members]);
+
+    const handleComposerChange = (value: string) => {
+        setFeedContent(value);
+        const atIdx = value.lastIndexOf('@');
+        if (atIdx !== -1 && atIdx === value.slice(0, value.length).lastIndexOf('@') && value[atIdx] === '@' && !value.slice(atIdx + 1).includes(' ')) {
+            setMentionQuery(value.slice(atIdx + 1));
+        } else {
+            setMentionQuery('');
+        }
+        setMentionIndex(0);
+    };
+
+    const insertMention = (username: string) => {
+        const parts = feedContent.split('@');
+        parts.pop();
+        const next = parts.join('@') + '@' + username + ' ';
+        setFeedContent(next);
+        setMentionQuery('');
+        composerRef.current?.focus();
+    };
+
+    const handlePublish = async () => {
+        if (!user || !feedContent.trim()) return;
+        setIsPosting(true);
+        try {
+            await communityService.createFeedPost(user.id, 'post', feedContent.trim());
+            setFeedContent('');
+            setMentionQuery('');
+            const posts = await communityService.getFeedPosts(50);
+            setFeedPosts(posts);
+        } catch { } finally {
+            setIsPosting(false);
+        }
+    };
+
+    const handleToggleFollow = async (targetId: string) => {
+        if (!user) return;
+        setFollowToggling(targetId);
+        try {
+            const nowFollowing = await communityService.toggleFollow(user.id, targetId);
+            setFollowing(prev => {
+                const next = new Set(prev);
+                if (nowFollowing) next.add(targetId); else next.delete(targetId);
+                return next;
+            });
+        } catch { } finally {
+            setFollowToggling(null);
+        }
+    };
+
+    const handleCopyInvite = async () => {
+        try {
+            await navigator.clipboard.writeText(`${window.location.origin}/dashboard`);
+            setInviteCopied(true);
+            setTimeout(() => setInviteCopied(false), 2000);
+        } catch { }
+    };
+
+    const renderMentions = (content: string | null) => {
+        if (!content) return null;
+        const parts = content.split(/(@[a-zA-Z0-9_.-]+)/g);
+        return parts.map((part, i) => {
+            if (part.startsWith('@') && part.length > 1) {
+                return <span key={i} className="font-bold" style={{ color: 'var(--accent-solid)' }}>{part}</span>;
+            }
+            return <span key={i}>{part}</span>;
+        });
+    };
 
     const handleStartChat = async (memberId: string) => {
         if (!user) return;
@@ -102,16 +224,142 @@ const MembersPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen text-white" style={{ background: 'var(--bg-primary)' }}>
-            <div className="max-w-2xl mx-auto px-6 py-6">
+        <div className="min-h-dvh text-white" style={{ background: 'var(--bg-primary)' }}>
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
                 <div className="flex items-center gap-4 mb-6">
                     <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-[var(--accent-soft)] rounded-full transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <h1 className="text-xl font-bold tracking-tight">Membros</h1>
-                    <span className="ml-auto text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>{filtered.length}</span>
+                    <h1 className="text-xl font-bold tracking-tight">{tab === 'members' ? 'Membros' : 'Feed da Comunidade'}</h1>
+                    <div className="ml-auto flex items-center gap-2">
+                        <button
+                            onClick={handleCopyInvite}
+                            className="p-2 rounded-xl transition-all"
+                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                            title="Copiar link de convite"
+                        >
+                            {inviteCopied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />}
+                        </button>
+                        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
+                            {tab === 'members' ? filtered.length : feedPosts.length}
+                        </span>
+                    </div>
                 </div>
 
+                <div className="flex items-center gap-2 mb-6 p-1 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                    {(['members', 'feed'] as const).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setTab(t)}
+                            className={cn("flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", tab === t ? "text-white" : "text-white/40")}
+                            style={tab === t ? { background: 'var(--accent-solid)', color: 'var(--text-on-accent)' } : {}}
+                        >
+                            {t === 'members' ? <Users className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                            {t === 'members' ? 'Membros' : 'Feed'}
+                        </button>
+                    ))}
+                </div>
+
+                {tab === 'feed' && (
+                    <div className="mb-8 space-y-4">
+                        <div className="rounded-3xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                            <textarea
+                                ref={composerRef}
+                                value={feedContent}
+                                onChange={(e) => handleComposerChange(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePublish(); }
+                                }}
+                                placeholder="Compartilhe com a comunidade... use @ para mencionar alguém"
+                                rows={3}
+                                className="w-full bg-transparent resize-none outline-none text-sm placeholder:text-white/30 font-medium"
+                            />
+                            {mentionQuery && mentionMatches.length > 0 && (
+                                <div className="mt-2 rounded-xl overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--border-strong)' }}>
+                                    {mentionMatches.map((m, i) => (
+                                        <button
+                                            key={m.id}
+                                            onMouseEnter={() => setMentionIndex(i)}
+                                            onClick={() => insertMention(m.username || '')}
+                                            className={cn("w-full flex items-center gap-2 px-3 py-2 text-left text-sm", mentionIndex === i && "bg-white/5")}
+                                        >
+                                            <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
+                                                {m.avatar_url ? <img src={m.avatar_url} className="w-full h-full object-cover" /> : <User className="w-3 h-3 text-white/40" />}
+                                            </div>
+                                            <span className="font-bold">@{m.username}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between mt-3">
+                                <span className="text-[10px] text-white/30">Enter para publicar</span>
+                                <button
+                                    onClick={handlePublish}
+                                    disabled={!feedContent.trim() || isPosting}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 hover:scale-[1.02] active:scale-95"
+                                    style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }}
+                                >
+                                    {isPosting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    Publicar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {feedPosts.length === 0 ? (
+                                <div className="text-center py-16">
+                                    <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                                    <p className="text-sm font-bold text-white/50">Nenhuma publicação ainda</p>
+                                    <p className="text-xs text-white/30 mt-1">Seja o primeiro a compartilhar</p>
+                                </div>
+                            ) : feedPosts.map((post, i) => (
+                                <motion.div
+                                    key={post.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                                    className="rounded-3xl p-4"
+                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                                >
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <button onClick={() => navigate(`/user/${post.author_id}`)} className="w-10 h-10 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+                                            {post.author?.avatar_url ? <img src={post.author.avatar_url} className="w-full h-full object-cover" /> : <User className="w-4 h-4 text-white/40" />}
+                                        </button>
+                                        <div className="flex-1 min-w-0">
+                                            <button onClick={() => navigate(`/user/${post.author_id}`)} className="font-bold text-sm hover:underline truncate block">
+                                                {post.author?.display_name || post.author?.username || 'Alguém'}
+                                                {post.author?.is_verified && <BadgeCheck className="inline w-4 h-4 ml-1 -mt-0.5" style={{ color: 'var(--accent-solid)' }} />}
+                                            </button>
+                                            <p className="text-[10px] text-white/30">
+                                                @{post.author?.username} · {new Date(post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                            </p>
+                                        </div>
+                                        {post.type === 'devotional' && (
+                                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ background: 'var(--accent-soft)', color: 'var(--accent-solid)' }}>
+                                                <BookOpen className="w-3 h-3" /> Devocional
+                                            </span>
+                                        )}
+                                        {post.type === 'event' && (
+                                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500/15 text-blue-400">
+                                                <Sparkles className="w-3 h-3" /> Evento
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{renderMentions(post.content)}</p>
+                                    {post.devotional && (
+                                        <div className="mt-3 p-3 rounded-2xl flex items-center gap-2" style={{ background: 'var(--surface-3)' }}>
+                                            <BookOpen className="w-4 h-4" style={{ color: 'var(--accent-solid)' }} />
+                                            <span className="text-xs font-bold">{post.devotional.title}</span>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'members' && (
+                <>
                 <div className="mb-6 space-y-4">
                     <div className="flex items-center justify-between mb-2">
                         <div>
@@ -177,6 +425,25 @@ const MembersPage: React.FC = () => {
                     )}
                 </div>
 
+                <div className="flex items-center gap-2 mb-4 overflow-x-auto custom-scrollbar">
+                    {([
+                        { id: 'all', label: 'Todos' },
+                        { id: 'leaders', label: 'Líderes' },
+                        { id: 'verified', label: 'Verificados' },
+                    ] as { id: typeof filter; label: string }[]).map(f => (
+                        <button
+                            key={f.id}
+                            onClick={() => setFilter(f.id)}
+                            className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5", filter === f.id ? "text-white" : "text-white/40 hover:text-white/70")}
+                            style={filter === f.id ? { background: 'var(--accent-solid)', color: 'var(--text-on-accent)' } : { background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                        >
+                            {f.id === 'verified' && <BadgeCheck className="w-3.5 h-3.5" />}
+                            {f.id === 'leaders' && <Shield className="w-3.5 h-3.5" />}
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
+
                 <div className="relative mb-6">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                     <input
@@ -236,6 +503,7 @@ const MembersPage: React.FC = () => {
                                             className="font-bold text-sm sm:text-base hover:underline truncate block text-left"
                                         >
                                             {member.display_name || member.username || 'Alguém'}
+                                            {member.is_verified && <BadgeCheck className="inline w-4 h-4 ml-1 -mt-0.5" style={{ color: 'var(--accent-solid)' }} />}
                                         </button>
                                         <p className="text-xs sm:text-sm truncate" style={{ color: 'var(--text-muted)' }}>
                                             @{member.username || 'username'}
@@ -247,6 +515,19 @@ const MembersPage: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                                        <button
+                                            onClick={() => handleToggleFollow(member.id)}
+                                            disabled={followToggling === member.id}
+                                            className={cn("p-2.5 sm:p-3 rounded-xl transition-all group", following.has(member.id) && "opacity-70")}
+                                            style={{ background: 'var(--bg-card-hover)' }}
+                                            title={following.has(member.id) ? 'Deixar de seguir' : 'Seguir'}
+                                        >
+                                            {followToggling === member.id ? (
+                                                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" style={{ color: 'var(--text-dim)' }} />
+                                            ) : (
+                                                <Heart className={cn("w-4 h-4 sm:w-5 sm:h-5 transition-colors", following.has(member.id) && "fill-red-500 text-red-500")} style={{ color: following.has(member.id) ? undefined : 'var(--text-muted)' }} />
+                                            )}
+                                        </button>
                                         <button
                                             onClick={() => navigate('/devotionals')}
                                             className="p-2.5 sm:p-3 rounded-xl transition-all group"
@@ -273,6 +554,8 @@ const MembersPage: React.FC = () => {
                             </motion.div>
                         ))}
                     </div>
+                )}
+                </>
                 )}
             </div>
 
@@ -321,7 +604,9 @@ const MembersPage: React.FC = () => {
                                             <User className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
                                         )}
                                     </div>
-                                    <h2 className="text-xl font-bold mt-3 tracking-tight">{previewMember.display_name || previewMember.username || 'Alguém'}</h2>
+                                    <h2 className="text-xl font-bold mt-3 tracking-tight">{previewMember.display_name || previewMember.username || 'Alguém'}
+                                        {previewMember.is_verified && <BadgeCheck className="inline w-5 h-5 ml-1.5 -mt-1" style={{ color: 'var(--accent-solid)' }} />}
+                                    </h2>
                                     <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>@{previewMember.username || 'username'}</p>
                                     {previewMember.role === 'leader' && (
                                         <div className="flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full" style={{ background: 'var(--accent-soft)' }}>
@@ -336,6 +621,19 @@ const MembersPage: React.FC = () => {
                                     )}
 
                                     <div className="flex items-center gap-3 mt-6 w-full">
+                                        <button
+                                            onClick={() => handleToggleFollow(previewMember.id)}
+                                            disabled={followToggling === previewMember.id}
+                                            className={cn("flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all", following.has(previewMember.id) ? "opacity-70" : "")}
+                                            style={{ background: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
+                                        >
+                                            {followToggling === previewMember.id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Heart className={cn("w-4 h-4", following.has(previewMember.id) && "fill-red-500 text-red-500")} />
+                                            )}
+                                            {following.has(previewMember.id) ? 'Seguindo' : 'Seguir'}
+                                        </button>
                                         <button
                                             onClick={() => { setPreviewMember(null); navigate(`/user/${previewMember.id}`); }}
                                             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all"

@@ -24,12 +24,14 @@ import {
     MessageCircle,
     ArrowRight,
     PenLine,
-    Save
+    Save,
+    Share2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { generateDevotional } from '../services/groqService';
+import { communityService } from '../services/features/communityService';
 import PageTransition from '../components/PageTransition';
 import DevotionalChat from '../components/DevotionalChat';
 import { cn } from '../lib/utils';
@@ -123,6 +125,7 @@ const DevotionalsPage: React.FC = () => {
     const [scheduledFor, setScheduledFor] = useState('');
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [publishingFeedId, setPublishingFeedId] = useState<string | null>(null);
 
     // Journal state
     const [journalTab, setJournalTab] = useState<'devotionals' | 'diary'>('devotionals');
@@ -397,6 +400,25 @@ const DevotionalsPage: React.FC = () => {
         }
     };
 
+    const handlePublishToFeed = async (dev: Devotional) => {
+        if (!user) return;
+        setPublishingFeedId(dev.id);
+        try {
+            await communityService.createFeedPost(
+                user.id,
+                'devotional',
+                `Acabei de criar o devocional "${dev.title}"${dev.verse ? ` — ${dev.verse}` : ''}. Vamos crescer juntos! 🙏`,
+                dev.id
+            );
+            setSuccessMessage('Publicado no feed da comunidade!');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            console.error('Error publishing to feed:', err);
+        } finally {
+            setPublishingFeedId(null);
+        }
+    };
+
     const resetWizard = () => {
         setTopic('');
         setBook('');
@@ -492,7 +514,7 @@ const DevotionalsPage: React.FC = () => {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white p-6 md:p-12 selection:bg-[var(--accent-hover)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
+        <div className="min-h-dvh text-white p-6 md:p-12 selection:bg-[var(--accent-hover)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
             <div className="max-w-4xl mx-auto">
                 <header className="flex items-center justify-between mb-16">
                     <div className="flex items-center gap-4 md:gap-12">
@@ -933,7 +955,7 @@ const DevotionalsPage: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg" style={{ background: 'var(--accent-solid)' }}>
+                                                <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all shadow-lg" style={{ background: 'var(--accent-solid)' }}>
                                                     <Upload size={14} />
                                                 </div>
                                                 <input type="file" className="hidden" accept="image/*" onChange={handleGroupPhotoUpload} />
@@ -1058,7 +1080,7 @@ const DevotionalsPage: React.FC = () => {
                                                             </span>
                                                             <button
                                                                 onClick={() => handleRemoveInvitee(invitee.id)}
-                                                                className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                                                                className="p-2 rounded-full hover:bg-white/10 active:scale-90 transition-all"
                                                                 style={{ color: 'var(--danger)' }}
                                                             >
                                                                 <X size={12} />
@@ -1206,7 +1228,7 @@ const DevotionalsPage: React.FC = () => {
                                                         <button
                                                             onClick={() => saveJournalEntry(selectedDevotional.id, reading.day, journalEntries[reading.day] || '')}
                                                             disabled={journalSavingDay === reading.day || !(journalEntries[reading.day] || '').trim()}
-                                                            className="mt-2 px-4 py-2 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase transition-all disabled:opacity-20 flex items-center gap-2"
+                                                            className="mt-2 px-4 py-3 rounded-xl text-[10px] font-bold tracking-[0.15em] uppercase transition-all disabled:opacity-20 flex items-center gap-2"
                                                             style={{ background: 'var(--accent-soft)', color: 'var(--accent-solid)' }}
                                                         >
                                                             {journalSavingDay === reading.day ? (
@@ -1316,8 +1338,19 @@ const DevotionalsPage: React.FC = () => {
                                                             )}
                                                             {dev.creator_id === user?.id && (
                                                                 <button
+                                                                    onClick={(e) => { e.stopPropagation(); handlePublishToFeed(dev); }}
+                                                                    disabled={publishingFeedId === dev.id}
+                                                                    className="p-3 rounded-xl transition-all hover:scale-110 disabled:opacity-40"
+                                                                    style={{ background: 'var(--border-strong)', color: 'var(--accent-solid)' }}
+                                                                    title="Publicar no feed da comunidade"
+                                                                >
+                                                                    {publishingFeedId === dev.id ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+                                                                </button>
+                                                            )}
+                                                            {dev.creator_id === user?.id && (
+                                                                <button
                                                                     onClick={(e) => { e.stopPropagation(); handleDelete(dev.id); }}
-                                                                    className="p-3 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                                                                    className="p-3 rounded-xl transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 active:scale-90"
                                                                     style={{ color: 'var(--danger)' }}
                                                                     onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--danger-soft)')}
                                                                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}

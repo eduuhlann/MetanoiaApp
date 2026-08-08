@@ -64,7 +64,7 @@ const PrayerPage: React.FC = () => {
 
     return (
         <PageTransition>
-        <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black flex flex-col">
+        <div className="min-h-dvh bg-black text-white selection:bg-white selection:text-black flex flex-col">
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.04)_0%,transparent_70%)]" />
             </div>

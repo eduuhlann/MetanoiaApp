@@ -111,10 +111,10 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteWallpaper(p.url)}
-                                                    className="absolute top-2 right-2 p-2.5 rounded-full bg-black/60 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                                    className="absolute top-2 right-2 p-3 rounded-full bg-black/70 text-white/70 hover:text-red-400 md:opacity-0 md:group-hover:opacity-100 transition-all backdrop-blur-sm"
                                                     title="Remover da galeria"
                                                 >
-                                                    <Trash2 size={12} />
+                                                    <Trash2 size={13} />
                                                 </button>
                                             </div>
                                         ))}
@@ -186,7 +186,7 @@ export default function CustomizationModal({ isOpen, onClose }: Props) {
                                                 key={style}
                                                 onClick={() => updatePreference('glassStyle', style)}
                                                 className={cn(
-                                                    "py-3 px-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border-2",
+                                                    "py-3.5 px-2 rounded-xl text-[10px] font-bold uppercase transition-all border-2",
                                                     (preferences.glassStyle || 'frosted') === style
                                                         ? "border-[var(--accent-solid)] bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-lg shadow-white/5"
                                                         : "border-transparent bg-white/[0.03] text-[var(--text-muted)] hover:bg-white/5 hover:text-[var(--text-secondary)]"

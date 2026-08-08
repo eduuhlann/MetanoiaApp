@@ -23,16 +23,25 @@ import ProfilePage from './pages/ProfilePage';
 import BiblePage from './pages/BiblePage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import MembersPage from './pages/ActivityFeed';
+import NotFound from './pages/NotFound';
+import MaintenancePage from './pages/MaintenancePage';
 import { DiscipleshipListener } from './components/DiscipleshipListener';
+
+const MAINTENANCE_MODE = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
 
 function AnimatedRoutes() {
   const location = useLocation();
+
+  if (MAINTENANCE_MODE && location.pathname !== '/maintenance') {
+    return <MaintenancePage />;
+  }
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Auth />} />
+        <Route path="/maintenance" element={<MaintenancePage />} />
         <Route path="/auth" element={<Navigate to="/login" replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/onboarding" element={
@@ -115,6 +124,7 @@ function AnimatedRoutes() {
             <MembersPage />
           </ProtectedRoute>
         } />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
   );

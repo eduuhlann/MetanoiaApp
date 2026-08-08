@@ -173,7 +173,7 @@ export default function Auth() {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider,
                 options: {
-                    redirectTo: 'https://metanoiaapp.vercel.app/auth/callback',
+                    redirectTo: `${window.location.origin}/auth/callback`,
                     queryParams: {
                         access_type: 'offline',
                         prompt: 'consent',
@@ -188,7 +188,7 @@ export default function Auth() {
     };
 
     return (
-        <div className="h-screen text-white relative overflow-hidden font-sans selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
+        <div className="h-dvh text-white relative overflow-hidden font-sans selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
             <InteractiveGrid />
 
             <div className="relative z-10 h-full flex flex-col lg:flex-row items-center justify-center lg:gap-20 p-4 md:p-6 overflow-hidden">

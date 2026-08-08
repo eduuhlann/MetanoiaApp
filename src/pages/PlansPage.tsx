@@ -84,7 +84,7 @@ const PlansPage: React.FC = () => {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white p-6 md:p-12 selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
+        <div className="min-h-dvh text-white p-6 md:p-12 selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
             <div className="max-w-4xl mx-auto">
                 <header className="flex items-center gap-4 md:gap-12 mb-16">
                     <button onClick={() => navigate('/dashboard')} className="p-3 rounded-2xl transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
@@ -134,7 +134,7 @@ const PlansPage: React.FC = () => {
                                         layout
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="relative p-8 border rounded-[2.5rem] cursor-pointer transition-all duration-300 hover:-translate-y-1 overflow-hidden group"
+                                        className="relative p-5 sm:p-8 border rounded-[2.5rem] cursor-pointer transition-all duration-300 hover:-translate-y-1 overflow-hidden group"
                                         style={{ background: 'rgba(255, 255, 255, 0.03)', borderColor: `${accent}20` }}
                                         onClick={() => navigate(`/plans/${plan.id}`)}
                                     >
@@ -146,19 +146,19 @@ const PlansPage: React.FC = () => {
                                                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: `${accent}15`, color: accent }}>
                                                     {planIcons[plan.id] || <BookOpen size={28} />}
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    {streak > 0 && (
-                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: `${accent}15`, color: accent }}>
-                                                            <Flame size={12} />
-                                                            <span className="text-[10px] font-black">{streak}d</span>
-                                                        </div>
-                                                    )}
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setShowConfirmDelete(plan.id); }}
-                                                        className="p-2.5 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                                                        style={{ background: 'rgba(255, 255, 255, 0.05)' }}
-                                                    >
-                                                        <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
+                                                        <div className="flex items-center gap-2">
+                                                            {streak > 0 && (
+                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: `${accent}15`, color: accent }}>
+                                                                    <Flame size={12} />
+                                                                    <span className="text-[10px] font-black">{streak}d</span>
+                                                                </div>
+                                                            )}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setShowConfirmDelete(plan.id); }}
+                                                                className="p-2.5 rounded-xl transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 active:scale-90"
+                                                                style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+                                                            >
+                                                                <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -218,7 +218,7 @@ const PlansPage: React.FC = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.1 }}
                                     whileHover={{ y: -5 }}
-                                    className="relative p-8 border rounded-[2.5rem] flex flex-col group overflow-hidden"
+                                    className="relative p-5 sm:p-8 border rounded-[2.5rem] flex flex-col group overflow-hidden"
                                     style={{ background: 'rgba(255, 255, 255, 0.03)', borderColor: `${accent}15` }}
                                 >
                                     {/* Background glow */}
@@ -278,7 +278,7 @@ const PlansPage: React.FC = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="p-8 rounded-[2.5rem] text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden group transition-all duration-300"
+                    className="p-6 sm:p-8 rounded-[2.5rem] text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden group transition-all duration-300"
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}
                 >
                     <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full opacity-10 blur-3xl" style={{ background: 'var(--accent-solid)' }} />
@@ -320,7 +320,7 @@ const PlansPage: React.FC = () => {
                                         key={plan.id}
                                         layout
                                         whileHover={{ y: -3 }}
-                                        className="relative p-8 border rounded-[2.5rem] flex flex-col group overflow-hidden"
+                                        className="relative p-5 sm:p-8 border rounded-[2.5rem] flex flex-col group overflow-hidden"
                                         style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
                                         onClick={() => isActive && navigate(`/plans/${plan.id}`)}
                                     >
@@ -339,7 +339,7 @@ const PlansPage: React.FC = () => {
                                                     </span>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setShowConfirmDelete(plan.id); }}
-                                                        className="p-2.5 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                                                        className="p-2.5 rounded-xl transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 active:scale-90"
                                                         style={{ background: 'rgba(255, 255, 255, 0.05)' }}
                                                     >
                                                         <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
@@ -409,7 +409,7 @@ const PlansPage: React.FC = () => {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="border p-10 rounded-[3rem] max-w-sm w-full relative z-10 text-center"
+                            className="border p-6 sm:p-10 rounded-[3rem] max-w-sm w-full relative z-10 text-center"
                             style={{ background: '#1a1a1a', borderColor: 'var(--border-strong)' }}
                         >
                             <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6" style={{ background: 'var(--danger-soft)', color: 'var(--accent-solid)' }}>
@@ -417,7 +417,7 @@ const PlansPage: React.FC = () => {
                             </div>
                             <h3 className="text-2xl font-bold mb-4">Remover Plano?</h3>
                             <p className="text-sm mb-8 leading-relaxed" style={{ color: 'var(--text-muted)' }}>Isso irá apagar todo o seu progresso neste plano. Esta ação não pode ser desfeita.</p>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                 <button onClick={() => setShowConfirmDelete(null)} className="py-4 rounded-2xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
                                     CANCELAR
                                 </button>

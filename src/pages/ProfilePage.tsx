@@ -224,7 +224,7 @@ const ProfilePage: React.FC = () => {
 
     return (
         <PageTransition>
-        <div className="h-screen bg-[var(--surface-1)] text-white overflow-hidden font-sans selection:bg-white/20">
+        <div className="h-dvh bg-[var(--surface-1)] text-white overflow-y-auto overflow-x-hidden font-sans selection:bg-white/20">
 
             <div className="max-w-4xl mx-auto px-0 py-4 md:py-8 md:pt-12 mb-20 relative z-10">
                 <header className="flex items-center gap-6 mb-10">
@@ -267,7 +267,7 @@ const ProfilePage: React.FC = () => {
                                     <div className="w-8 h-8 border-2 border-[var(--border-strong)] border-t-white rounded-full animate-spin" />
                                 </div>
                             )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/banner:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
+                            <div className="absolute inset-0 bg-black/40 opacity-100 md:opacity-0 md:group-hover/banner:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
                                 <Camera size={28} className="text-white mb-2" />
                                 <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-white">Alterar Banner</span>
                             </div>
@@ -312,7 +312,7 @@ const ProfilePage: React.FC = () => {
                                             <div className="w-6 h-6 border-2 border-[var(--border-strong)] border-t-white rounded-full animate-spin" />
                                         </div>
                                     )}
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/avatar:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm pb-1">
+                                    <div className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover/avatar:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm pb-1">
                                         <Camera size={24} className="text-white mb-1" />
                                     </div>
                                 </div>

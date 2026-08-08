@@ -7,7 +7,7 @@ import {
     DndContext,
     closestCenter,
     KeyboardSensor,
-    PointerSensor,
+    MouseSensor,
     useSensor,
     useSensors,
     DragEndEvent
@@ -124,7 +124,7 @@ function SortableCard({ id, item, navigate, glassStyle, notifCount }: { id: stri
             style={style}
             {...attributes}
             {...listeners}
-            className="touch-none h-full relative cursor-grab active:cursor-grabbing"
+            className="touch-manipulation h-full relative cursor-grab active:cursor-grabbing"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -144,7 +144,7 @@ function SortableCard({ id, item, navigate, glassStyle, notifCount }: { id: stri
                    }
                 }}
                 className={cn(
-                    "p-6 border rounded-3xl text-left group transition-all h-full shadow-2xl shadow-black/20",
+                    "p-5 md:p-6 border rounded-3xl text-left group transition-all h-full shadow-2xl shadow-black/20",
                     getGlassClasses()
                 )}
             >
@@ -348,7 +348,7 @@ export default function Dashboard() {
     };
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
+        useSensor(MouseSensor, {
             activationConstraint: { distance: 8 },
         }),
         useSensor(KeyboardSensor, {
@@ -368,7 +368,7 @@ export default function Dashboard() {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white p-4 md:p-12 overflow-x-hidden selection:bg-[var(--accent-soft)] selection:text-white relative" style={{ background: preferences.wallpaper === 'custom' ? 'transparent' : 'var(--bg-primary)' }}>
+        <div className="min-h-dvh text-white p-4 md:p-12 overflow-x-hidden selection:bg-[var(--accent-soft)] selection:text-white relative" style={{ background: preferences.wallpaper === 'custom' ? 'transparent' : 'var(--bg-primary)' }}>
             <div className="max-w-full relative z-10">
                     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 md:mb-16">
                         <div className="flex items-center gap-3 md:gap-6">
@@ -415,7 +415,7 @@ export default function Dashboard() {
                                     items={menuItems.map(i => i.id)}
                                     strategy={rectSortingStrategy}
                                 >
-                                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-12 relative">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-12 relative">
                                         {menuItems.map((item) => (
                                             <SortableCard
                                                 key={item.id}
@@ -431,7 +431,7 @@ export default function Dashboard() {
                             </DndContext>
                         </div>
                     ) : (
-                        <div className="fixed bottom-0 left-0 right-0 pb-8 flex justify-center z-[100] pointer-events-none">
+                        <div className="fixed bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),1.5rem)] flex justify-center z-[100] pointer-events-none">
                             <div className="pointer-events-auto">
                                 <FloatingDock
                                     items={[
@@ -545,7 +545,7 @@ export default function Dashboard() {
                                             </span>
                                             <div
                                                 className={cn(
-                                                    "w-8 h-8 mx-auto rounded-full flex items-center justify-center text-[10px] font-bold transition-all",
+                                                    "w-7 h-7 sm:w-8 sm:h-8 mx-auto rounded-full flex items-center justify-center text-[10px] font-bold transition-all",
                                                     day.completed ? "text-white" : day.isToday ? "text-white" : "text-white/20"
                                                 )}
                                                 style={{
@@ -565,7 +565,7 @@ export default function Dashboard() {
                         </div>
                     )}
 
-
+                    {preferences.dashboardStyle === 'dock' && <div className="h-32 md:h-20" />}
                 </div>
             </div>
 

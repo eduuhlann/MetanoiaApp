@@ -54,7 +54,7 @@ export default function PlanDetails() {
     };
 
     if (!plan || !userPlan) {
-        return <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }} />;
+        return <div className="min-h-dvh" style={{ background: 'var(--bg-primary)' }} />;
     }
 
     const totalPages = Math.ceil(plan.durationDays / DAYS_PER_PAGE);
@@ -70,8 +70,8 @@ export default function PlanDetails() {
 
     return (
         <PageTransition>
-        <div className="min-h-screen text-white relative overflow-hidden selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
-            <header className="fixed top-0 left-0 right-0 p-6 md:p-12 z-50 flex justify-between items-center pointer-events-none">
+        <div className="min-h-dvh text-white relative overflow-hidden selection:bg-[var(--accent-soft)] selection:text-white" style={{ background: 'var(--bg-primary)' }}>
+            <header className="fixed top-0 left-0 right-0 p-6 pt-[max(env(safe-area-inset-top),1.5rem)] md:p-12 md:pt-[max(env(safe-area-inset-top),3rem)] z-50 flex justify-between items-center pointer-events-none">
                 <button
                     onClick={() => navigate('/plans')}
                     className="pointer-events-auto flex items-center gap-2 text-white/40 hover:text-white transition-all duration-300 group"
@@ -81,7 +81,7 @@ export default function PlanDetails() {
                 </button>
             </header>
 
-            <main className="relative z-10 max-w-3xl mx-auto pt-32 pb-24 px-6">
+            <main className="relative z-10 max-w-3xl mx-auto pt-32 pb-24 px-4 sm:px-6">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
