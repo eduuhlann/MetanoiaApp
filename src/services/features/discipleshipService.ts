@@ -267,7 +267,7 @@ export const discipleshipService = {
 
     async uploadFile(file: File): Promise<{ url: string; name: string; type: string }> {
         const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
         const filePath = `notes/${fileName}`;
         const { error: uploadError } = await supabase.storage.from('discipleship_files').upload(filePath, file, { contentType: file.type || 'application/octet-stream', upsert: false });
         if (uploadError) throw uploadError;

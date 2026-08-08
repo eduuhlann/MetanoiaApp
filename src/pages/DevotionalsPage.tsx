@@ -1342,7 +1342,7 @@ const DevotionalsPage: React.FC = () => {
                                                     <div className="p-16 rounded-[2.5rem] text-center" style={{ border: '2px dashed var(--border)' }}>
                                                         <PenLine className="mx-auto mb-4" size={48} style={{ color: 'var(--accent-soft)' }} />
                                                         <p className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Nenhum diário ainda</p>
-                                                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Crie um devocional multi-dia para开始 escrever reflexões</p>
+                                                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Crie um devocional multi-dia para escrever reflexões</p>
                                                     </div>
                                                 );
                                             }

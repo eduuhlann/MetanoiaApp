@@ -32,14 +32,17 @@ const ParticleBackground: React.FC<ParticleBackgroundProps> = ({ forceParticles 
         const createParticles = () => {
             particles = [];
             const count = Math.floor(window.innerWidth / 15);
+            const rand = new Uint32Array(count * 6);
+            crypto.getRandomValues(rand);
             for (let i = 0; i < count; i++) {
+                const r = i * 6;
                 particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 1.5 + 0.5,
-                    speedX: (Math.random() - 0.5) * 0.3,
-                    speedY: (Math.random() - 0.5) * 0.3,
-                    opacity: Math.random() * 0.5 + 0.1
+                    x: (rand[r] / 4294967296) * canvas.width,
+                    y: (rand[r + 1] / 4294967296) * canvas.height,
+                    size: (rand[r + 2] / 4294967296) * 1.5 + 0.5,
+                    speedX: (rand[r + 3] / 4294967296 - 0.5) * 0.3,
+                    speedY: (rand[r + 4] / 4294967296 - 0.5) * 0.3,
+                    opacity: (rand[r + 5] / 4294967296) * 0.5 + 0.1
                 });
             }
         };

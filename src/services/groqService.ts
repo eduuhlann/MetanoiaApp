@@ -55,7 +55,7 @@ export const generateDevotional = async (
             : `Um devocional de ${durationDays} dias. Cada dia deve ter um versículo diferente para ler, uma reflexão e uma aplicação prática.`;
 
         const prompt = `
-Atue como um pastor e teólogo cristão experiente,熟悉 com a Bíblia NVI (Nova Versão Internacional).
+Atue como um pastor e teólogo cristão experiente, familiar com a Bíblia NVI (Nova Versão Internacional).
 Gere um devocional profundo e pessoal com base nas seguintes informações:
 
 - Assunto/Tema principal: ${topic}
