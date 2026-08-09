@@ -27,3 +27,6 @@ yarn-error.*
 
 # Vite
 .vite/
+
+# Strix runs
+strix_runs/
