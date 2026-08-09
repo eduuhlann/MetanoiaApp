@@ -96,13 +96,15 @@ const PublicProfilePage: React.FC = () => {
         setStartingChat(true);
         try {
             await discipleshipService.getOrCreateConnection(user.id, userId);
-            sessionStorage.setItem('pendingChat', JSON.stringify({
-                id: userId,
-                username: profile?.username || null,
-                display_name: profile?.display_name || null,
-                avatar_url: profile?.avatar_url || null,
-            }));
-            navigate('/discipleship', {
+            try {
+                sessionStorage.setItem('pendingChat', JSON.stringify({
+                    id: userId,
+                    username: profile?.username || null,
+                    display_name: profile?.display_name || null,
+                    avatar_url: profile?.avatar_url || null,
+                }));
+            } catch { /* storage unavailable — state/URL fallback still works */ }
+            navigate(`/discipleship?chat=${userId}`, {
                 state: {
                     openChatWith: {
                         id: userId,

@@ -230,13 +230,15 @@ const MembersPage: React.FC = () => {
         setConnectingId(memberId);
         try {
             await discipleshipService.getOrCreateConnection(user.id, memberId);
-            sessionStorage.setItem('pendingChat', JSON.stringify({
-                id: memberId,
-                username: member?.username || null,
-                display_name: member?.display_name || null,
-                avatar_url: member?.avatar_url || null,
-            }));
-            navigate('/discipleship', {
+            try {
+                sessionStorage.setItem('pendingChat', JSON.stringify({
+                    id: memberId,
+                    username: member?.username || null,
+                    display_name: member?.display_name || null,
+                    avatar_url: member?.avatar_url || null,
+                }));
+            } catch { /* storage unavailable — state/URL fallback still works */ }
+            navigate(`/discipleship?chat=${memberId}`, {
                 state: {
                     openChatWith: {
                         id: memberId,

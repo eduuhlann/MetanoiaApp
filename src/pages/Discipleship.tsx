@@ -138,6 +138,9 @@ const Discipleship: React.FC = () => {
         const fromState = (location.state as any)?.openChatWith;
         let targetId: string | null = fromState?.id || null;
         if (!targetId) {
+            targetId = new URLSearchParams(location.search).get('chat');
+        }
+        if (!targetId) {
             try {
                 const stored = sessionStorage.getItem('pendingChat');
                 if (stored) {
@@ -149,19 +152,46 @@ const Discipleship: React.FC = () => {
         if (targetId) {
             pendingOpenChatRef.current = targetId;
         }
-    }, [location.state]);
+    }, [location.state, location.search]);
 
     useEffect(() => {
         const targetId = pendingOpenChatRef.current;
-        if (!targetId) return;
+        if (!targetId || !user) return;
         const match = connections.find(conn => conn.type !== 'group' && conn.partnerId === targetId);
         if (match) {
             pendingOpenChatRef.current = null;
             sessionStorage.removeItem('pendingChat');
             handleSelectConnection(match);
+            return;
         }
+        // Connection not in the list yet — resolve it directly so the chat always opens
+        const resolveAndOpen = async () => {
+            if (pendingOpenChatRef.current !== targetId) return;
+            try {
+                const conn = await discipleshipService.getOrCreateConnection(user.id, targetId);
+                if (pendingOpenChatRef.current !== targetId) return;
+                if (connections.some(c => c.type !== 'group' && c.partnerId === targetId)) return;
+                const { data: targetProfile } = await supabase
+                    .from('profiles')
+                    .select('username, avatar_url, display_name')
+                    .eq('id', targetId)
+                    .maybeSingle();
+                const normalized = {
+                    ...conn,
+                    type: 'disciple',
+                    profile: targetProfile || conn.profile,
+                    partnerId: targetId,
+                };
+                pendingOpenChatRef.current = null;
+                sessionStorage.removeItem('pendingChat');
+                handleSelectConnection(normalized);
+            } catch (e) {
+                console.error('Error opening chat directly:', e);
+            }
+        };
+        resolveAndOpen();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [connections, location.state]);
+    }, [connections, location.state, location.search, user]);
 
     useEffect(() => {
         loadConnections();
