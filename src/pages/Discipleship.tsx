@@ -151,14 +151,19 @@ const Discipleship: React.FC = () => {
         }
         if (targetId) {
             pendingOpenChatRef.current = targetId;
+            console.log('[openChat] target resolved:', targetId, '| search:', location.search);
+        } else {
+            console.warn('[openChat] no target in state/search/sessionStorage');
         }
     }, [location.state, location.search]);
 
     useEffect(() => {
         const targetId = pendingOpenChatRef.current;
         if (!targetId || !user) return;
+        console.log('[openChat] targeting user:', targetId);
         const match = connections.find(conn => conn.type !== 'group' && conn.partnerId === targetId);
         if (match) {
+            console.log('[openChat] found in list, opening:', match.partnerId);
             pendingOpenChatRef.current = null;
             sessionStorage.removeItem('pendingChat');
             handleSelectConnection(match);
@@ -184,9 +189,11 @@ const Discipleship: React.FC = () => {
                 };
                 pendingOpenChatRef.current = null;
                 sessionStorage.removeItem('pendingChat');
+                console.log('[openChat] opening direct connection:', targetId);
                 handleSelectConnection(normalized);
             } catch (e) {
-                console.error('Error opening chat directly:', e);
+                console.error('[openChat] failed to open chat:', e);
+                setAlertBanner({ isOpen: true, message: `Não foi possível abrir o chat: ${(e as any)?.message || 'erro desconhecido'}`, type: 'error' });
             }
         };
         resolveAndOpen();
