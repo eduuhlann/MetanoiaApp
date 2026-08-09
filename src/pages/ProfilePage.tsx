@@ -446,6 +446,38 @@ const ProfilePage: React.FC = () => {
                 title={cropType === 'banner' ? 'Personalizar arte do banner' : 'Ajustar Avatar'}
                 onCropComplete={onCropComplete}
             />
+
+            <AnimatePresence>
+                {saved && (
+                    <motion.div
+                        className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.4, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                            className="w-24 h-24 rounded-full bg-white flex items-center justify-center shadow-[0_0_80px_rgba(255,255,255,0.5)]"
+                        >
+                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" className="text-black">
+                                <motion.path
+                                    d="M5 12.5l4.5 4.5L19 7.5"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    initial={{ pathLength: 0 }}
+                                    animate={{ pathLength: 1 }}
+                                    transition={{ duration: 0.45, delay: 0.15, ease: 'easeOut' }}
+                                />
+                            </svg>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
         </PageTransition>
     );
