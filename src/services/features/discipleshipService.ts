@@ -60,18 +60,28 @@ export const discipleshipService = {
     },
 
     async getOrCreateConnection(userId1: string, userId2: string): Promise<any> {
-        const { data: existing } = await supabase
+        const { data: existing, error: findError } = await supabase
             .from('discipleship_connections')
             .select('*, profiles:disciple_id (username, avatar_url)')
             .or(`and(leader_id.eq.${userId1},disciple_id.eq.${userId2}),and(leader_id.eq.${userId2},disciple_id.eq.${userId1})`)
-            .maybeSingle();
-        if (existing) return existing;
+            .order('created_at', { ascending: true })
+            .limit(1);
+        if (!findError && existing && existing.length > 0) return existing[0];
         const { data: created, error: createError } = await supabase
             .from('discipleship_connections')
             .insert({ leader_id: userId1, disciple_id: userId2, status: 'active' })
             .select('*, profiles:disciple_id (username, avatar_url)')
             .single();
-        if (createError) throw createError;
+        if (createError) {
+            const { data: refetched, error: refetchError } = await supabase
+                .from('discipleship_connections')
+                .select('*, profiles:disciple_id (username, avatar_url)')
+                .or(`and(leader_id.eq.${userId1},disciple_id.eq.${userId2}),and(leader_id.eq.${userId2},disciple_id.eq.${userId1})`)
+                .order('created_at', { ascending: true })
+                .limit(1);
+            if (!refetchError && refetched && refetched.length > 0) return refetched[0];
+            throw createError;
+        }
         return created;
     },
 

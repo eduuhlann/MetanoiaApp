@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, User, Users, MessageCircle, BookOpen, Search, X, ExternalLink, Shield, Cake, BadgeCheck, Heart, Share2, Loader2, Send, Sparkles, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { discipleshipService } from '../services/features/discipleshipService';
 import { communityService, FeedPost } from '../services/features/communityService';
 import { Loading } from '../components/Loading';
 import { cn } from '../lib/utils';
@@ -229,7 +228,6 @@ const MembersPage: React.FC = () => {
         if (!user) return;
         setConnectingId(memberId);
         try {
-            await discipleshipService.getOrCreateConnection(user.id, memberId);
             try {
                 sessionStorage.setItem('pendingChat', JSON.stringify({
                     id: memberId,
@@ -237,7 +235,7 @@ const MembersPage: React.FC = () => {
                     display_name: member?.display_name || null,
                     avatar_url: member?.avatar_url || null,
                 }));
-            } catch { /* storage unavailable — state/URL fallback still works */ }
+            } catch { /* storage unavailable — URL fallback still works */ }
             navigate(`/discipleship?chat=${memberId}`, {
                 state: {
                     openChatWith: {

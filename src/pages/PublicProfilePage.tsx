@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import { ArrowLeft, MessageCircle, User, BadgeCheck, Heart, Loader2, Users, BookOpen, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { discipleshipService } from '../services/features/discipleshipService';
 import { communityService, FeedPost } from '../services/features/communityService';
 import { Loading } from '../components/Loading';
 import { cn } from '../lib/utils';
@@ -95,7 +94,6 @@ const PublicProfilePage: React.FC = () => {
         if (!user || !userId || userId === user.id) return;
         setStartingChat(true);
         try {
-            await discipleshipService.getOrCreateConnection(user.id, userId);
             try {
                 sessionStorage.setItem('pendingChat', JSON.stringify({
                     id: userId,
@@ -103,7 +101,7 @@ const PublicProfilePage: React.FC = () => {
                     display_name: profile?.display_name || null,
                     avatar_url: profile?.avatar_url || null,
                 }));
-            } catch { /* storage unavailable — state/URL fallback still works */ }
+            } catch { /* storage unavailable — URL fallback still works */ }
             navigate(`/discipleship?chat=${userId}`, {
                 state: {
                     openChatWith: {
@@ -115,7 +113,7 @@ const PublicProfilePage: React.FC = () => {
                 },
             });
         } catch (err) {
-            console.error('Error starting chat:', err);
+            console.error('Error opening chat:', err);
         } finally {
             setStartingChat(false);
         }
