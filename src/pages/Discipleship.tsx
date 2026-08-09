@@ -44,7 +44,7 @@ import {
     RefreshCw,
     Link as LinkIcon
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { discipleshipService, DiscipleshipTask, DiscipleshipNote } from '../services/features/discipleshipService';
@@ -57,10 +57,12 @@ import { supabase } from '../lib/supabase';
 
 const Discipleship: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { profile } = useProfile();
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'chat'>('list');
+    const pendingOpenChatRef = useRef<any | null>(null);
 
     // UI States
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -131,6 +133,13 @@ const Discipleship: React.FC = () => {
 
     useEffect(() => { connectionsRef.current = connections; }, [connections]);
     useEffect(() => { selectedConnectionRef.current = selectedConnection; }, [selectedConnection]);
+
+    useEffect(() => {
+        const target = (location.state as any)?.openChatWith;
+        if (target?.id) {
+            pendingOpenChatRef.current = target.id;
+        }
+    }, [location.state]);
 
     useEffect(() => {
         loadConnections();
@@ -216,6 +225,16 @@ const Discipleship: React.FC = () => {
             });
 
             setConnections(filteredAll);
+
+            // Auto-open chat if navigated from a member profile
+            const pendingTarget = pendingOpenChatRef.current;
+            if (pendingTarget) {
+                const match = filteredAll.find(conn => conn.type !== 'group' && conn.partnerId === pendingTarget);
+                if (match) {
+                    pendingOpenChatRef.current = null;
+                    handleSelectConnection(match);
+                }
+            }
 
             // Fetch unread counts
             const counts = await discipleshipService.getUnreadCounts(user.id);

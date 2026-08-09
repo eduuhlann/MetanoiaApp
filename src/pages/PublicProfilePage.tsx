@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, MessageCircle, User, BadgeCheck, Heart, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, BadgeCheck, Heart, Loader2, Users, BookOpen, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { discipleshipService } from '../services/features/discipleshipService';
-import { communityService } from '../services/features/communityService';
+import { communityService, FeedPost } from '../services/features/communityService';
 import { Loading } from '../components/Loading';
 import { cn } from '../lib/utils';
 
@@ -29,6 +29,8 @@ const PublicProfilePage: React.FC = () => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [followToggling, setFollowToggling] = useState(false);
     const [followCounts, setFollowCounts] = useState<{ followers: number; following: number }>({ followers: 0, following: 0 });
+    const [posts, setPosts] = useState<FeedPost[]>([]);
+    const [postsLoading, setPostsLoading] = useState(false);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -51,6 +53,28 @@ const PublicProfilePage: React.FC = () => {
         };
         fetchProfile();
     }, [userId, user]);
+
+    useEffect(() => {
+        const fetchPosts = async () => {
+            if (!userId) return;
+            setPostsLoading(true);
+            const posts = await communityService.getFeedPosts(100);
+            setPosts(posts.filter(p => p.author_id === userId));
+            setPostsLoading(false);
+        };
+        fetchPosts();
+    }, [userId]);
+
+    const renderMentions = (content: string | null) => {
+        if (!content) return null;
+        const parts = content.split(/(@[a-zA-Z0-9_.-]+)/g);
+        return parts.map((part, i) => {
+            if (part.startsWith('@') && part.length > 1) {
+                return <span key={i} className="font-bold" style={{ color: 'var(--accent-solid)' }}>{part}</span>;
+            }
+            return <span key={i}>{part}</span>;
+        });
+    };
 
     const handleToggleFollow = async () => {
         if (!user || !userId || userId === user.id) return;
@@ -195,6 +219,61 @@ const PublicProfilePage: React.FC = () => {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Publicações */}
+            <div className="max-w-2xl mx-auto px-6 mt-10 pb-20">
+                <div className="flex items-center gap-2 mb-5">
+                    <Sparkles className="w-4 h-4" style={{ color: 'var(--accent-solid)' }} />
+                    <h2 className="text-lg font-bold tracking-tight">Publicações</h2>
+                    <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{posts.length}</span>
+                </div>
+
+                {postsLoading ? (
+                    <div className="flex justify-center py-12">
+                        <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                ) : posts.length === 0 ? (
+                    <div className="p-8 rounded-3xl text-center" style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)' }}>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>Nenhuma publicação ainda</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>As postagens deste usuário aparecerão aqui</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {posts.map(post => (
+                            <motion.div
+                                key={post.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="rounded-3xl p-4"
+                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                            >
+                                <div className="flex items-center gap-2 mb-3">
+                                    {post.type === 'devotional' && (
+                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ background: 'var(--accent-soft)', color: 'var(--accent-solid)' }}>
+                                            <BookOpen className="w-3 h-3" /> Devocional
+                                        </span>
+                                    )}
+                                    {post.type === 'event' && (
+                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500/15 text-blue-400">
+                                            <Sparkles className="w-3 h-3" /> Evento
+                                        </span>
+                                    )}
+                                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                        {new Date(post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                    </span>
+                                </div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{renderMentions(post.content)}</p>
+                                {post.devotional && (
+                                    <div className="mt-3 p-3 rounded-2xl flex items-center gap-2" style={{ background: 'var(--surface-3)' }}>
+                                        <BookOpen className="w-4 h-4" style={{ color: 'var(--accent-solid)' }} />
+                                        <span className="text-xs font-bold">{post.devotional.title}</span>
+                                    </div>
+                                )}
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -27,7 +27,7 @@ import {
     Save,
     Share2
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { generateDevotional } from '../services/groqService';
@@ -94,6 +94,7 @@ type WizardStep = 'config' | 'preview' | 'mode' | 'schedule' | 'group-info' | 'i
 
 const DevotionalsPage: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
 
     const [view, setView] = useState<'list' | 'wizard' | 'chat'>('list');
@@ -190,6 +191,17 @@ const DevotionalsPage: React.FC = () => {
         fetchDevotionals();
     }, [fetchDevotionals]);
 
+    useEffect(() => {
+        const member = (location.state as any)?.startDevotionalWith;
+        if (member?.id && member.id !== user?.id) {
+            setInvitees(prev =>
+                prev.some(i => i.id === member.id)
+                    ? prev
+                    : [...prev, { id: member.id, username: member.username, display_name: member.display_name, avatar_url: member.avatar_url }]
+            );
+        }
+    }, [location.state, user?.id]);
+
     const handleGenerate = async () => {
         if (!topic.trim()) return;
         setGenerating(true);
@@ -235,7 +247,8 @@ const DevotionalsPage: React.FC = () => {
         return words.length > 0 && words.every(w => t.includes(w));
     };
 
-    const handleSearchUsers = async (query: string) => {
+    const handleSearchUsers = async (rawQuery: string) => {
+        const query = rawQuery.trim().replace(/^@+/, '');
         setUserSearch(query);
         if (!allUsersLoaded) await loadAllUsers();
 

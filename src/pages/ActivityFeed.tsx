@@ -29,6 +29,8 @@ const MembersPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [connectingId, setConnectingId] = useState<string | null>(null);
     const [previewMember, setPreviewMember] = useState<MemberProfile | null>(null);
+    const [previewPosts, setPreviewPosts] = useState<FeedPost[]>([]);
+    const [previewPostsLoading, setPreviewPostsLoading] = useState(false);
     const [birthdayUsers, setBirthdayUsers] = useState<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null; birth_date: string; age: number }[]>([]);
 
     // Feed da comunidade (#80, #81)
@@ -58,6 +60,17 @@ const MembersPage: React.FC = () => {
         };
         loadFollowing();
     }, [user]);
+
+    useEffect(() => {
+        const loadPreviewPosts = async () => {
+            if (!previewMember) { setPreviewPosts([]); setPreviewPostsLoading(false); return; }
+            setPreviewPostsLoading(true);
+            const posts = await communityService.getFeedPosts(100);
+            setPreviewPosts(posts.filter(p => p.author_id === previewMember.id));
+            setPreviewPostsLoading(false);
+        };
+        loadPreviewPosts();
+    }, [previewMember?.id]);
 
     useEffect(() => {
         const loadFeed = async () => {
@@ -212,12 +225,21 @@ const MembersPage: React.FC = () => {
         });
     };
 
-    const handleStartChat = async (memberId: string) => {
+    const handleStartChat = async (memberId: string, member?: MemberProfile | null) => {
         if (!user) return;
         setConnectingId(memberId);
         try {
             await discipleshipService.getOrCreateConnection(user.id, memberId);
-            navigate('/discipleship');
+            navigate('/discipleship', {
+                state: {
+                    openChatWith: {
+                        id: memberId,
+                        username: member?.username || null,
+                        display_name: member?.display_name || null,
+                        avatar_url: member?.avatar_url || null,
+                    },
+                },
+            });
         } catch {
             setConnectingId(null);
         }
@@ -529,15 +551,17 @@ const MembersPage: React.FC = () => {
                                             )}
                                         </button>
                                         <button
-                                            onClick={() => navigate('/devotionals')}
+                                            onClick={() => navigate('/devotionals', {
+                                                state: { startDevotionalWith: member },
+                                            })}
                                             className="p-2.5 sm:p-3 rounded-xl transition-all group"
                                             style={{ background: 'var(--bg-card-hover)' }}
-                                            title="Devocionais"
+                                            title="Fazer devocional juntos"
                                         >
                                             <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 group-hover:text-[var(--accent-solid)] transition-colors" style={{ color: 'var(--text-muted)' }} />
                                         </button>
                                         <button
-                                            onClick={() => handleStartChat(member.id)}
+                                            onClick={() => handleStartChat(member.id, member)}
                                             disabled={connectingId === member.id}
                                             className="p-2.5 sm:p-3 rounded-xl transition-all group"
                                             style={{ background: 'var(--bg-card-hover)' }}
@@ -574,7 +598,7 @@ const MembersPage: React.FC = () => {
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: '100%', opacity: 0 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden"
+                            className="relative w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
                             style={{ background: 'var(--surface-3)' }}
                         >
                             {/* Banner */}
@@ -643,7 +667,7 @@ const MembersPage: React.FC = () => {
                                             Ver Perfil
                                         </button>
                                         <button
-                                            onClick={() => { setPreviewMember(null); handleStartChat(previewMember.id); }}
+                                            onClick={() => { setPreviewMember(null); handleStartChat(previewMember.id, previewMember); }}
                                             disabled={connectingId === previewMember.id}
                                             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all"
                                             style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }}
@@ -652,6 +676,41 @@ const MembersPage: React.FC = () => {
                                             {connectingId === previewMember.id ? 'Conectando...' : 'Chat'}
                                         </button>
                                     </div>
+                                </div>
+
+                                <div className="mt-8 text-left">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Sparkles className="w-4 h-4" style={{ color: 'var(--accent-solid)' }} />
+                                        <h3 className="text-sm font-bold tracking-tight">Publicações</h3>
+                                        <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{previewPosts.length}</span>
+                                    </div>
+                                    {previewPostsLoading ? (
+                                        <div className="flex justify-center py-8">
+                                            <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                                        </div>
+                                    ) : previewPosts.length === 0 ? (
+                                        <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>
+                                            Nenhuma publicação ainda
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-3 pb-2">
+                                            {previewPosts.map(post => (
+                                                <div key={post.id} className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                                                    {post.type === 'devotional' && (
+                                                        <div className="flex items-center gap-1.5 mb-2">
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ background: 'var(--accent-soft)', color: 'var(--accent-solid)' }}>
+                                                                <BookOpen className="w-3 h-3" /> Devocional
+                                                            </span>
+                                                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                                                {new Date(post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <p className="text-xs leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
