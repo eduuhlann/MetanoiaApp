@@ -28,22 +28,17 @@ export interface DiscipleshipMeeting {
     created_at: string;
 }
 
-export interface LeaderOverview {
-    groups: number;
-    members: number;
-    pendingMembers: number;
-    openTasks: number;
-    upcomingMeetings: number;
-    unreadNotes: number;
-}
+const INVITE_CODE_TTL_MS = 5 * 60 * 1000;
 
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+// Sorteio: alfabeto (A-Z) + números (1-9) — sem o "0" para não confundir com "O"
+const CODE_POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789';
+const CODE_LENGTH = 6;
 
 const generateCode = (): string => {
-    const arr = new Uint32Array(8);
+    const arr = new Uint32Array(CODE_LENGTH);
     crypto.getRandomValues(arr);
     let code = '';
-    for (let i = 0; i < 8; i++) code += CODE_CHARS[arr[i] % CODE_CHARS.length];
+    for (let i = 0; i < CODE_LENGTH; i++) code += CODE_POOL[arr[i] % CODE_POOL.length];
     return code;
 };
 
@@ -148,30 +143,46 @@ export const communityService = {
     },
 
     // ---------- Grupo por código de convite (#64) ----------
-    async ensureGroupInviteCode(groupId: string): Promise<string> {
-        const { data: group } = await supabase.from('discipleship_groups').select('invite_code').eq('id', groupId).single();
-        if (group?.invite_code) return group.invite_code;
-        let code = generateCode();
-        const { data, error } = await supabase
-            .from('discipleship_groups')
-            .update({ invite_code: code })
-            .eq('id', groupId)
-            .select('invite_code')
-            .single();
-        if (error || !data?.invite_code) return '';
-        return data.invite_code;
+    async ensureGroupInviteCode(groupId: string): Promise<{ code: string; expiresAt: number | null }> {
+        const { data, error } = await supabase.from('discipleship_groups').select('invite_code, invite_code_expires_at').eq('id', groupId).maybeSingle();
+        if (!error && data?.invite_code && data.invite_code_expires_at && new Date(data.invite_code_expires_at).getTime() > Date.now()) {
+            return { code: data.invite_code, expiresAt: new Date(data.invite_code_expires_at).getTime() };
+        }
+        return this.regenerateGroupInviteCode(groupId);
     },
 
-    async regenerateGroupInviteCode(groupId: string): Promise<string> {
-        const code = generateCode();
-        const { data, error } = await supabase
-            .from('discipleship_groups')
-            .update({ invite_code: code })
-            .eq('id', groupId)
-            .select('invite_code')
-            .single();
-        if (error) throw error;
-        return data?.invite_code || '';
+    async regenerateGroupInviteCode(groupId: string): Promise<{ code: string; expiresAt: number | null }> {
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const code = generateCode();
+            const expiresAt = Date.now() + INVITE_CODE_TTL_MS;
+            const expiresIso = new Date(expiresAt).toISOString();
+
+            // Tenta salvar código + validade (exige a coluna invite_code_expires_at no banco)
+            const { data, error } = await supabase
+                .from('discipleship_groups')
+                .update({ invite_code: code, invite_code_expires_at: expiresIso })
+                .eq('id', groupId)
+                .select('invite_code, invite_code_expires_at')
+                .maybeSingle();
+
+            if (!error && data?.invite_code) {
+                return { code: data.invite_code, expiresAt: data.invite_code_expires_at ? new Date(data.invite_code_expires_at).getTime() : null };
+            }
+
+            // Coluna ainda não existe no banco? Tenta salvar só o código (sem validade)
+            const fallback = await supabase
+                .from('discipleship_groups')
+                .update({ invite_code: code })
+                .eq('id', groupId)
+                .select('invite_code')
+                .maybeSingle();
+            if (!fallback.error && fallback.data?.invite_code) {
+                return { code: fallback.data.invite_code, expiresAt: null };
+            }
+
+            // Colisão de código único (ou outro erro) → sorteia de novo
+        }
+        throw new Error('Não foi possível gerar um código único. Tente novamente.');
     },
 
     async getGroupByInviteCode(code: string): Promise<any | null> {
@@ -184,17 +195,18 @@ export const communityService = {
         return data;
     },
 
-    async joinGroupByCode(code: string, userId: string): Promise<any | null> {
+    async joinGroupByCode(code: string, userId: string): Promise<{ status: 'ok' | 'expired' | 'invalid'; group?: any }> {
         const group = await this.getGroupByInviteCode(code);
-        if (!group) return null;
-        if (group.leader_id === userId) return group;
-        const { data, error } = await supabase
+        if (!group) return { status: 'invalid' };
+        if (group.invite_code_expires_at && new Date(group.invite_code_expires_at).getTime() < Date.now()) {
+            return { status: 'expired', group };
+        }
+        if (group.leader_id === userId) return { status: 'ok', group };
+        const { error } = await supabase
             .from('discipleship_group_members')
-            .upsert({ group_id: group.id, user_id: userId, status: 'active', role: 'member' }, { onConflict: 'group_id,user_id' })
-            .select()
-            .single();
+            .upsert({ group_id: group.id, user_id: userId, status: 'active', role: 'member' }, { onConflict: 'group_id,user_id' });
         if (error) throw error;
-        return group;
+        return { status: 'ok', group };
     },
 
     // ---------- Reuniões (#56) ----------
@@ -222,36 +234,4 @@ export const communityService = {
         const { error } = await supabase.from('discipleship_meetings').delete().eq('id', meetingId);
         if (error) throw error;
     },
-
-    // ---------- Painel do líder (#66) ----------
-    async getLeaderOverview(userId: string): Promise<LeaderOverview | null> {
-        const { data: groups } = await supabase
-            .from('discipleship_groups')
-            .select('id')
-            .eq('leader_id', userId);
-        const groupIds = (groups || []).map(g => g.id);
-
-        const [{ count: members }, { count: pendingMembers }, { count: openTasks }, { count: unreadNotes }, { count: upcomingMeetings }] = await Promise.all([
-            groupIds.length > 0
-                ? supabase.from('discipleship_group_members').select('*', { count: 'exact', head: true }).in('group_id', groupIds).eq('status', 'active')
-                : Promise.resolve({ count: 0 }),
-            groupIds.length > 0
-                ? supabase.from('discipleship_group_members').select('*', { count: 'exact', head: true }).in('group_id', groupIds).eq('status', 'pending')
-                : Promise.resolve({ count: 0 }),
-            supabase.from('discipleship_tasks').select('*', { count: 'exact', head: true }).eq('leader_id', userId).eq('is_completed', false),
-            supabase.from('discipleship_notes').select('*', { count: 'exact', head: true }).eq('is_read', false).neq('author_id', userId).eq('leader_id', userId),
-            groupIds.length > 0
-                ? supabase.from('discipleship_meetings').select('*', { count: 'exact', head: true }).in('group_id', groupIds).gte('scheduled_at', new Date().toISOString())
-                : Promise.resolve({ count: 0 })
-        ]);
-
-        return {
-            groups: groupIds.length,
-            members: members || 0,
-            pendingMembers: pendingMembers || 0,
-            openTasks: openTasks || 0,
-            unreadNotes: unreadNotes || 0,
-            upcomingMeetings: upcomingMeetings || 0
-        };
-    }
 };

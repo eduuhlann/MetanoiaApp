@@ -40,15 +40,17 @@ import {
     CalendarPlus,
     DoorOpen,
     KeyRound,
-    LayoutDashboard,
     RefreshCw,
-    Link as LinkIcon
+    Link as LinkIcon,
+    BadgeCheck,
+    Shield,
+    Timer
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { discipleshipService, DiscipleshipTask, DiscipleshipNote } from '../services/features/discipleshipService';
-import { communityService, DiscipleshipMeeting, LeaderOverview } from '../services/features/communityService';
+import { communityService, DiscipleshipMeeting } from '../services/features/communityService';
 import { statsService, BibleStats } from '../services/features/statsService';
 import { STATIC_BOOKS } from '../services/bible/staticBibleData';
 import PageTransition from '../components/PageTransition';
@@ -98,16 +100,24 @@ const Discipleship: React.FC = () => {
 
     // Group invite code (#64)
     const [inviteCode, setInviteCode] = useState('');
+    const [inviteCodeExpiresAt, setInviteCodeExpiresAt] = useState<number | null>(null);
+    const [codeCountdown, setCodeCountdown] = useState(0);
+    const [isCodeRenewing, setIsCodeRenewing] = useState(false);
+    const [isInviteCodeModalOpen, setIsInviteCodeModalOpen] = useState(false);
     const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
     const [copiedInvite, setCopiedInvite] = useState(false);
     const [joinCode, setJoinCode] = useState('');
     const [isJoinGroupModalOpen, setIsJoinGroupModalOpen] = useState(false);
     const [isJoiningGroup, setIsJoiningGroup] = useState(false);
 
-    // Leader overview (#66)
-    const [leaderOverview, setLeaderOverview] = useState<LeaderOverview | null>(null);
-    const [isLeaderOverviewOpen, setIsLeaderOverviewOpen] = useState(false);
-    const [isLoadingOverview, setIsLoadingOverview] = useState(false);
+    // Group creation: avatar
+    const [newGroupAvatarFile, setNewGroupAvatarFile] = useState<File | null>(null);
+    const [newGroupAvatarPreview, setNewGroupAvatarPreview] = useState<string | null>(null);
+    const groupAvatarInputRef = useRef<HTMLInputElement>(null);
+
+    // Profile viewer
+    const [viewProfile, setViewProfile] = useState<any | null>(null);
+    const [isProfileLoading, setIsProfileLoading] = useState(false);
 
     // Data States
     const [connections, setConnections] = useState<any[]>([]);
@@ -230,7 +240,7 @@ const Discipleship: React.FC = () => {
     }, [contextMenuNoteId]);
 
     useEffect(() => {
-        if (isGroupMembersModalOpen && selectedConnection?.type === 'group') {
+        if (isGroupMembersModalOpen && selectedConnection?.type === 'group' && selectedConnection.leader_id === user?.id) {
             openInviteCode();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -563,19 +573,42 @@ const Discipleship: React.FC = () => {
         }
     };
 
+    const closeCreateGroupModal = () => {
+        setIsGroupModalOpen(false);
+        setNewGroupName('');
+        setNewGroupAvatarFile(null);
+        setNewGroupAvatarPreview(null);
+    };
+
     const handleCreateGroup = async () => {
         if (!user || !newGroupName.trim() || isCreatingGroup) return;
         setIsCreatingGroup(true);
         try {
-            const groupId = await discipleshipService.createGroup(user.id, newGroupName);
-            await communityService.ensureGroupInviteCode(groupId);
+            const trimmedName = newGroupName.trim();
+            const groupId = await discipleshipService.createGroup(user.id, trimmedName);
+
+            // Upload avatar (photo/GIF) if chosen
+            let avatarUrl: string | null = null;
+            if (newGroupAvatarFile) {
+                avatarUrl = await discipleshipService.uploadGroupAvatar(groupId, newGroupAvatarFile);
+                await discipleshipService.updateGroupAvatar(groupId, avatarUrl);
+            }
+
+            // Generate the 6-digit invite code valid for 5 minutes
+            const invite = await communityService.ensureGroupInviteCode(groupId);
+            setInviteCode(invite.code);
+            setInviteCodeExpiresAt(invite.expiresAt);
+
             setNewGroupName('');
+            setNewGroupAvatarFile(null);
+            setNewGroupAvatarPreview(null);
             setIsGroupModalOpen(false);
             loadConnections();
 
-            // Automatically select the new group
-            const newGroup = { id: groupId, name: newGroupName, leader_id: user.id, type: 'group' };
+            // Automatically select the new group and show the invite code screen
+            const newGroup = { id: groupId, name: trimmedName, avatar_url: avatarUrl, leader_id: user.id, type: 'group' };
             handleSelectConnection(newGroup);
+            setIsInviteCodeModalOpen(true);
         } catch (error: any) {
             console.error('Error creating group:', error);
             setAlertBanner({ isOpen: true, message: `Erro ao criar grupo: ${error.message || 'Verifique sua conexão.'}`, type: 'error' });
@@ -656,8 +689,9 @@ const Discipleship: React.FC = () => {
         if (!selectedConnection || selectedConnection.type !== 'group') return;
         setCopiedInvite(false);
         try {
-            const code = await communityService.ensureGroupInviteCode(selectedConnection.id);
-            setInviteCode(code);
+            const invite = await communityService.ensureGroupInviteCode(selectedConnection.id);
+            setInviteCode(invite.code);
+            setInviteCodeExpiresAt(invite.expiresAt);
         } catch (error) {
             setAlertBanner({ isOpen: true, message: 'Erro ao gerar código de convite.', type: 'error' });
         }
@@ -672,28 +706,59 @@ const Discipleship: React.FC = () => {
     };
 
     const handleRegenerateInviteCode = async () => {
-        if (!selectedConnection || selectedConnection.type !== 'group') return;
+        if (!selectedConnection || selectedConnection.type !== 'group' || selectedConnection.leader_id !== user?.id) return;
+        if (isCodeRenewing) return;
+        setIsCodeRenewing(true);
         setIsRegeneratingCode(true);
         try {
-            const code = await communityService.regenerateGroupInviteCode(selectedConnection.id);
-            setInviteCode(code);
+            const invite = await communityService.regenerateGroupInviteCode(selectedConnection.id);
+            setInviteCode(invite.code);
+            setInviteCodeExpiresAt(invite.expiresAt);
             setCopiedInvite(false);
         } catch (error) {
             setAlertBanner({ isOpen: true, message: 'Erro ao regenerar código.', type: 'error' });
         } finally {
+            setIsCodeRenewing(false);
             setIsRegeneratingCode(false);
         }
     };
+
+    const formatCountdown = (totalSeconds: number) => {
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    // Auto-renew the code when it expires while it's on screen
+    useEffect(() => {
+        if (inviteCodeExpiresAt == null) return;
+        const tick = () => {
+            const remaining = Math.max(0, Math.ceil((inviteCodeExpiresAt - Date.now()) / 1000));
+            setCodeCountdown(remaining);
+            if (remaining <= 0 && (isInviteCodeModalOpen || isGroupMembersModalOpen) && selectedConnection?.leader_id === user?.id) {
+                handleRegenerateInviteCode();
+            }
+        };
+        tick();
+        const interval = setInterval(tick, 1000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [inviteCodeExpiresAt, isInviteCodeModalOpen, isGroupMembersModalOpen]);
 
     const handleJoinGroupByCode = async () => {
         if (!user || !joinCode.trim()) return;
         setIsJoiningGroup(true);
         try {
-            const group = await communityService.joinGroupByCode(joinCode, user.id);
-            if (!group) {
+            const result = await communityService.joinGroupByCode(joinCode, user.id);
+            if (result.status === 'invalid') {
                 setAlertBanner({ isOpen: true, message: 'Código inválido. Verifique e tente novamente.', type: 'error' });
                 return;
             }
+            if (result.status === 'expired') {
+                setAlertBanner({ isOpen: true, message: 'Este código expirou. Peça um novo código ao líder do grupo.', type: 'error' });
+                return;
+            }
+            const group = result.group!;
             setJoinCode('');
             setIsJoinGroupModalOpen(false);
             loadConnections();
@@ -705,18 +770,31 @@ const Discipleship: React.FC = () => {
         }
     };
 
-    // ---------- Leader overview (#66) ----------
-    const openLeaderOverview = async () => {
-        if (!user) return;
-        setIsLeaderOverviewOpen(true);
-        setIsLoadingOverview(true);
+    // ---------- Profile viewer ----------
+    const openProfileModal = async (userId: string, preview?: any, groupRole?: string) => {
+        setIsProfileLoading(true);
+        setViewProfile({ id: userId, ...(preview || {}), groupRole } as any);
         try {
-            const data = await communityService.getLeaderOverview(user.id);
-            setLeaderOverview(data);
+            const full = await discipleshipService.getUserProfile(userId);
+            setViewProfile({ ...(preview || {}), ...(full || {}), id: userId, groupRole });
         } catch (error) {
-            setLeaderOverview(null);
+            console.error('Error loading profile:', error);
         } finally {
-            setIsLoadingOverview(false);
+            setIsProfileLoading(false);
+        }
+    };
+
+    const handleMemberRowClick = (member: any) => {
+        const memberProfile = getProfile(member.profiles);
+        openProfileModal(member.user_id, memberProfile, member.role);
+    };
+
+    const openHeaderProfile = () => {
+        if (!selectedConnection) return;
+        if (selectedConnection.type === 'group') {
+            setIsGroupMembersModalOpen(true);
+        } else {
+            openProfileModal(selectedConnection.partnerId, selectedConnection.profile);
         }
     };
 
@@ -1003,6 +1081,19 @@ const Discipleship: React.FC = () => {
         }
     };
 
+    const handleGroupAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setAlertBanner({ isOpen: true, message: 'Escolha uma imagem ou GIF.', type: 'error' });
+            return;
+        }
+        setNewGroupAvatarFile(file);
+        const reader = new FileReader();
+        reader.onload = () => setNewGroupAvatarPreview(reader.result as string);
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
 
     const handleViewMemberStats = async (memberUserId: string) => {
         setIsGroupMembersModalOpen(false);
@@ -1106,9 +1197,27 @@ const Discipleship: React.FC = () => {
                             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
                                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                                     <h3 className="text-xl font-bold tracking-tight">Criar Novo Grupo</h3>
-                                    <button onClick={() => setIsGroupModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                                    <button onClick={closeCreateGroupModal} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                                 </div>
                                 <div className="p-6 space-y-6">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => groupAvatarInputRef.current?.click()}
+                                            disabled={isCreatingGroup}
+                                            className="w-28 h-28 rounded-full border-2 border-dashed border-white/20 overflow-hidden flex items-center justify-center transition-all hover:border-white/40 disabled:opacity-50"
+                                        >
+                                            {newGroupAvatarPreview ? (
+                                                <img src={newGroupAvatarPreview} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1.5 opacity-50">
+                                                    <ImageIcon className="w-8 h-8" />
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest">Foto / GIF</span>
+                                                </div>
+                                            )}
+                                        </button>
+                                        <span className="text-[10px] text-white/40 font-medium text-center">Foto de perfil do grupo (PNG, JPG, GIF ou WebP)</span>
+                                    </div>
                                     <div className="space-y-4">
                                         <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold ml-1">Nome do Grupo</label>
                                         <input type="text" autoFocus placeholder="Ex: Discipulado Jovens" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-sm focus:ring-0 focus:border-white/30 transition-all font-medium" />
@@ -1121,6 +1230,7 @@ const Discipleship: React.FC = () => {
                                         ) : 'Criar Grupo'}
                                     </button>
                                 </div>
+                                <input type="file" ref={groupAvatarInputRef} className="hidden" accept="image/*,image/gif" onChange={handleGroupAvatarChange} />
                             </motion.div>
                         </motion.div>
                     )}
@@ -1141,6 +1251,64 @@ const Discipleship: React.FC = () => {
                     )}
                 </AnimatePresence>
 
+                <AnimatePresence>
+                    {isInviteCodeModalOpen && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <KeyRound className="w-5 h-5 text-white/60" />
+                                        <h3 className="text-xl font-black italic tracking-tight">Código de Convite</h3>
+                                    </div>
+                                    <button onClick={() => setIsInviteCodeModalOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
+                                </div>
+                                <div className="p-6 space-y-6">
+                                    <div className="text-center space-y-2">
+                                        <p className="text-sm font-bold text-white/80">{selectedConnection?.name || 'Grupo criado com sucesso!'}</p>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Timer className="w-4 h-4 text-white/40" />
+                                            {inviteCodeExpiresAt != null ? (
+                                                <span className={cn("text-xs font-black uppercase tracking-widest", codeCountdown <= 0 ? "text-red-400" : "text-white/50")}>
+                                                    {codeCountdown <= 0 ? 'Código renovado automaticamente' : `Válido por ${formatCountdown(codeCountdown)}`}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs font-black uppercase tracking-widest text-white/50">Código de convite do grupo</span>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-white/30">Compartilhe com quem você quer que entre no grupo</p>
+                                    </div>
+                                    <div className="flex items-center justify-center">
+                                        <code className="text-center text-4xl font-black tracking-[0.25em] px-6 py-6 rounded-3xl bg-black/40 border border-dashed border-white/15 w-full" style={{ color: 'var(--accent-solid)' }}>
+                                            {inviteCode || '······'}
+                                        </code>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={handleCopyInvite}
+                                            disabled={!inviteCode}
+                                            className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white/70 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                        >
+                                            {copiedInvite ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                                            {copiedInvite ? 'Copiado!' : 'Copiar'}
+                                        </button>
+                                        <button
+                                            onClick={handleRegenerateInviteCode}
+                                            disabled={isRegeneratingCode}
+                                            className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white/70 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                        >
+                                            {isRegeneratingCode ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                            Novo
+                                        </button>
+                                    </div>
+                                    <button onClick={() => setIsInviteCodeModalOpen(false)} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all">
+                                        Concluir
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 <div className="flex flex-1 overflow-hidden">
 
 
@@ -1155,7 +1323,7 @@ const Discipleship: React.FC = () => {
                                     <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Chat Privado"><MessageSquarePlus className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
                                     <button onClick={() => setIsGroupModalOpen(true)} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Novo Grupo"><Users className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
                                     <button onClick={() => setIsJoinGroupModalOpen(true)} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Entrar com código"><DoorOpen className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
-                                    <button onClick={openLeaderOverview} className="p-2.5 md:p-3 rounded-2xl transition-all shadow-xl hover:scale-105 active:scale-95" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} title="Visão do Líder"><LayoutDashboard className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /></button>
+
                                     <button onClick={() => { setSearchMode('global'); setIsSearchOpen(true); }} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="p-2.5 md:p-3 rounded-2xl hover:scale-110 active:scale-90 transition-all shadow-xl"><Plus className="w-5 h-5" /></button>
                                 </div>
                             </div>
@@ -1222,7 +1390,7 @@ const Discipleship: React.FC = () => {
                                     <div className="flex items-center gap-4">
                                         <button onClick={() => setView('list')} className="md:hidden p-2.5 rounded-xl" style={{ background: 'var(--bg-card)' }}><ArrowLeft className="w-5 h-5" /></button>
                                         <div className="flex items-center gap-3">
-                                                    <div className="relative group/avatar">
+                                                    <div className="relative group/avatar cursor-pointer" onClick={openHeaderProfile} title={selectedConnection.type === 'group' ? 'Ver membros do grupo' : 'Ver perfil'}>
                                                         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                                                             {selectedConnection.type === 'group' ? (
                                                                 selectedConnection.avatar_url ? <img src={selectedConnection.avatar_url} className="w-full h-full object-cover" /> : <Users className="w-5 h-5 md:w-6 md:h-6" style={{ color: 'var(--text-muted)' }} />
@@ -1234,7 +1402,8 @@ const Discipleship: React.FC = () => {
                                                         </div>
                                                         {selectedConnection.type === 'group' && selectedConnection.leader_id === user?.id && (
                                                             <button
-                                                                onClick={() => {
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
                                                                     const input = document.createElement('input');
                                                                     input.type = 'file';
                                                                     input.accept = 'image/*,image/gif';
@@ -1248,7 +1417,9 @@ const Discipleship: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <h3 className="font-bold text-sm md:text-xl tracking-tight leading-tight truncate">{selectedConnection.name || selectedConnection.profile?.display_name || selectedConnection.profile?.username}</h3>
+                                                        <button onClick={openHeaderProfile} className="font-bold text-sm md:text-xl tracking-tight leading-tight truncate text-left hover:underline block w-full">
+                                                            {selectedConnection.name || selectedConnection.profile?.display_name || selectedConnection.profile?.username}
+                                                        </button>
                                                 <div className="flex items-center gap-2">
                                                     {selectedConnection.type === 'group' ? (
                                                         <div 
@@ -1701,7 +1872,17 @@ const Discipleship: React.FC = () => {
                                                 {copiedInvite ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                                             </button>
                                         </div>
-                                        <p className="text-[10px] text-white/30 mt-2 text-center">Compartilhe este código para que outros entrem no grupo</p>
+                                        <div className="flex items-center justify-center gap-1.5 mt-2">
+                                            <Timer className="w-3 h-3 text-white/40" />
+                                            {inviteCodeExpiresAt != null ? (
+                                                <span className={cn("text-[10px] font-bold", codeCountdown <= 0 ? "text-red-400" : "text-white/40")}>
+                                                    {codeCountdown <= 0 ? 'Expirado — gerando novo código...' : `Válido por ${formatCountdown(codeCountdown)}`}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-white/40">Código de convite do grupo</span>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-white/30 mt-1 text-center">Compartilhe este código para que outros entrem no grupo</p>
                                     </div>
                                 )}
                                 <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto custom-scrollbar">
@@ -1715,7 +1896,14 @@ const Discipleship: React.FC = () => {
                                             const memberProfile = getProfile(member.profiles);
                                             const isMe = member.user_id === user?.id;
                                             return (
-                                                <div key={member.id} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+                                                <div
+                                                    key={member.id}
+                                                    onClick={(e) => {
+                                                        if ((e.target as HTMLElement).closest('button')) return;
+                                                        handleMemberRowClick(member);
+                                                    }}
+                                                    className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                                                >
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-full bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                                                             {memberProfile?.avatar_url ? (
@@ -1800,13 +1988,13 @@ const Discipleship: React.FC = () => {
                                         <input
                                             type="text"
                                             autoFocus
-                                            placeholder="EX: ABCD1234"
+                                            placeholder="EX: ABC123"
                                             value={joinCode}
-                                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                                            onChange={(e) => setJoinCode(e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6))}
                                             onKeyDown={(e) => { if (e.key === 'Enter') handleJoinGroupByCode(); }}
                                             className="w-full bg-black/40 border-white/10 rounded-2xl py-4 px-6 text-center text-xl font-black tracking-[0.3em] uppercase focus:ring-0 focus:border-white/30 transition-all font-medium"
                                         />
-                                        <p className="text-[10px] text-white/30 ml-1">Peça o código a um líder do grupo</p>
+                                        <p className="text-[10px] text-white/30 ml-1">Peça o código a um líder do grupo (expira em 5 minutos)</p>
                                     </div>
                                     <button onClick={handleJoinGroupByCode} disabled={!joinCode.trim() || isJoiningGroup} style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                                         {isJoiningGroup ? (<><Loader2 className="w-4 h-4 animate-spin" /> ENTRANDO...</>) : 'Entrar no Grupo'}
@@ -1879,50 +2067,6 @@ const Discipleship: React.FC = () => {
                 </AnimatePresence>
 
                 <AnimatePresence>
-                    {isLeaderOverviewOpen && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <LayoutDashboard className="w-5 h-5 text-white/60" />
-                                        <h3 className="text-xl font-bold tracking-tight">Visão do Líder</h3>
-                                    </div>
-                                    <button onClick={() => setIsLeaderOverviewOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><X className="w-5 h-5" /></button>
-                                </div>
-                                <div className="p-6 space-y-4">
-                                    {isLoadingOverview ? (
-                                        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-white/40" /></div>
-                                    ) : leaderOverview ? (
-                                        <>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {[
-                                                    { label: 'Grupos', value: leaderOverview.groups, icon: <Users className="w-4 h-4" /> },
-                                                    { label: 'Membros', value: leaderOverview.members, icon: <User className="w-4 h-4" /> },
-                                                    { label: 'Convites pendentes', value: leaderOverview.pendingMembers, icon: <UserPlus className="w-4 h-4" /> },
-                                                    { label: 'Desafios abertos', value: leaderOverview.openTasks, icon: <TrendingUp className="w-4 h-4" /> },
-                                                    { label: 'Mensagens não lidas', value: leaderOverview.unreadNotes, icon: <MessageSquare className="w-4 h-4" /> },
-                                                    { label: 'Próximas reuniões', value: leaderOverview.upcomingMeetings, icon: <CalendarPlus className="w-4 h-4" /> }
-                                                ].map(item => (
-                                                    <div key={item.label} className="p-4 rounded-2xl border border-white/10" style={{ background: 'var(--surface-3)' }}>
-                                                        <div className="flex items-center gap-2 text-white/50 mb-2">{item.icon}<span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span></div>
-                                                        <p className="text-3xl font-black italic" style={{ color: 'var(--accent-solid)' }}>{item.value}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <button onClick={() => setIsLeaderOverviewOpen(false)} className="w-full py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-white/60 text-xs font-black uppercase tracking-widest transition-all">
-                                                Fechar
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <p className="text-center text-sm text-white/40 py-8">Não foi possível carregar o resumo.</p>
-                                    )}
-                                </div>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                <AnimatePresence>
                     {confirmModal.isOpen && (
                         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
                             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--surface-4)' }} className="border border-white/10 p-8 rounded-[32px] w-full max-w-sm shadow-2xl space-y-6">
@@ -1960,6 +2104,122 @@ const Discipleship: React.FC = () => {
                                 <Copy className="w-3.5 h-3.5 text-white/60" />
                                 <span className="text-[11px] font-bold text-white/60">Mensagem copiada</span>
                             </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Profile Viewer */}
+                <AnimatePresence>
+                    {viewProfile && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[220] flex items-end sm:items-center justify-center"
+                        >
+                            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setViewProfile(null)} />
+                            <motion.div
+                                initial={{ y: '100%', opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: '100%', opacity: 0 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="relative w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
+                                style={{ background: 'var(--surface-3)' }}
+                            >
+                                {isProfileLoading ? (
+                                    <div className="flex items-center justify-center py-24">
+                                        <Loader2 className="w-8 h-8 animate-spin text-white/40" />
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Banner */}
+                                        <div className="relative h-40">
+                                            {viewProfile.banner_url ? (
+                                                <img src={viewProfile.banner_url} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full" style={{ background: 'var(--surface-2)' }} />
+                                            )}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface-3)] via-transparent to-transparent" />
+                                            <button
+                                                onClick={() => setViewProfile(null)}
+                                                className="absolute top-4 right-4 p-2 rounded-full transition-colors"
+                                                style={{ background: 'var(--surface-5)' }}
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        {/* Avatar + Info */}
+                                        <div className="px-6 -mt-12 pb-6 relative z-10">
+                                            <div className="flex flex-col items-center text-center">
+                                                <div className="w-24 h-24 rounded-full border-4 overflow-hidden flex items-center justify-center" style={{ borderColor: 'var(--surface-3)', background: 'var(--surface-4)' }}>
+                                                    {viewProfile.avatar_url ? (
+                                                        <img src={viewProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <User className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
+                                                    )}
+                                                </div>
+                                                <h2 className="text-xl font-bold mt-3 tracking-tight">
+                                                    {viewProfile.display_name || viewProfile.username || 'Alguém'}
+                                                    {viewProfile.is_verified && <BadgeCheck className="inline w-5 h-5 ml-1.5 -mt-1" style={{ color: 'var(--accent-solid)' }} />}
+                                                </h2>
+                                                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>@{viewProfile.username || 'username'}</p>
+                                                {viewProfile.id === user?.id ? (
+                                                    <div className="flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-white/5">
+                                                        <User className="w-3 h-3 text-white/50" />
+                                                        <span className="text-[10px] font-bold tracking-widest uppercase text-white/50">Você</span>
+                                                    </div>
+                                                ) : (
+                                                    (viewProfile.groupRole === 'admin' || (selectedConnection?.type === 'group' && viewProfile.id === selectedConnection?.leader_id)) && (
+                                                        <div className="flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full" style={{ background: 'var(--accent-soft)' }}>
+                                                            <Shield className="w-3 h-3" style={{ color: 'var(--accent-solid)' }} />
+                                                            <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'var(--accent-solid)' }}>
+                                                                {viewProfile.id === selectedConnection?.leader_id ? 'Líder' : 'Co-Líder'}
+                                                            </span>
+                                                        </div>
+                                                    )
+                                                )}
+
+                                                {/* Sobre mim */}
+                                                <div className="w-full mt-5 pt-4 border-t border-white/5 text-left">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Sobre mim</p>
+                                                    {viewProfile.bio ? (
+                                                        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{viewProfile.bio}</p>
+                                                    ) : (
+                                                        <p className="text-sm italic text-white/30">Sem bio por enquanto...</p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-col gap-2.5 mt-5 w-full">
+                                                    <button
+                                                        onClick={() => {
+                                                            setViewProfile(null);
+                                                            navigate(`/user/${viewProfile.id}`);
+                                                        }}
+                                                        className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                                                        style={{ background: 'var(--accent-solid)', color: 'var(--text-on-accent)' }}
+                                                    >
+                                                        Ver Perfil Completo
+                                                    </button>
+                                                    {viewProfile.id !== user?.id && viewProfile.groupRole && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const member = groupMembers.find(m => m.user_id === viewProfile.id);
+                                                                setViewProfile(null);
+                                                                setIsGroupMembersModalOpen(false);
+                                                                if (member) handleMemberAction(member);
+                                                            }}
+                                                            className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-white/5 hover:bg-white/10 text-white/70 flex items-center justify-center gap-2"
+                                                        >
+                                                            <MessageSquare className="w-4 h-4" /> Conversar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </motion.div>
                         </motion.div>
                     )}
                 </AnimatePresence>

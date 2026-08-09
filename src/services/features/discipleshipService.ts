@@ -275,6 +275,16 @@ export const discipleshipService = {
         return `${data.publicUrl}?t=${Date.now()}`;
     },
 
+    async getUserProfile(userId: string): Promise<any | null> {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, display_name, avatar_url, banner_url, bio, role, is_verified, birth_date')
+            .eq('id', userId)
+            .maybeSingle();
+        if (error || !data) return null;
+        return data;
+    },
+
     async uploadFile(file: File): Promise<{ url: string; name: string; type: string }> {
         const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
         const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;

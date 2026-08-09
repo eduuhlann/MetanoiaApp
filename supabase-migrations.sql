@@ -737,6 +737,8 @@ CREATE POLICY "Users can unfollow"
 -- ============================================
 ALTER TABLE discipleship_groups
   ADD COLUMN IF NOT EXISTS invite_code TEXT UNIQUE;
+ALTER TABLE discipleship_groups
+  ADD COLUMN IF NOT EXISTS invite_code_expires_at TIMESTAMPTZ;
 
 -- ============================================
 -- 23. Reuniões de discipulado
@@ -834,4 +836,3 @@ CREATE POLICY "Authors can delete own posts"
   USING (auth.uid() = author_id);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE feed_posts;
-
