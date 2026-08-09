@@ -135,11 +135,33 @@ const Discipleship: React.FC = () => {
     useEffect(() => { selectedConnectionRef.current = selectedConnection; }, [selectedConnection]);
 
     useEffect(() => {
-        const target = (location.state as any)?.openChatWith;
-        if (target?.id) {
-            pendingOpenChatRef.current = target.id;
+        const fromState = (location.state as any)?.openChatWith;
+        let targetId: string | null = fromState?.id || null;
+        if (!targetId) {
+            try {
+                const stored = sessionStorage.getItem('pendingChat');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed?.id) targetId = parsed.id;
+                }
+            } catch { /* ignore */ }
+        }
+        if (targetId) {
+            pendingOpenChatRef.current = targetId;
         }
     }, [location.state]);
+
+    useEffect(() => {
+        const targetId = pendingOpenChatRef.current;
+        if (!targetId) return;
+        const match = connections.find(conn => conn.type !== 'group' && conn.partnerId === targetId);
+        if (match) {
+            pendingOpenChatRef.current = null;
+            sessionStorage.removeItem('pendingChat');
+            handleSelectConnection(match);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [connections, location.state]);
 
     useEffect(() => {
         loadConnections();
@@ -225,16 +247,6 @@ const Discipleship: React.FC = () => {
             });
 
             setConnections(filteredAll);
-
-            // Auto-open chat if navigated from a member profile
-            const pendingTarget = pendingOpenChatRef.current;
-            if (pendingTarget) {
-                const match = filteredAll.find(conn => conn.type !== 'group' && conn.partnerId === pendingTarget);
-                if (match) {
-                    pendingOpenChatRef.current = null;
-                    handleSelectConnection(match);
-                }
-            }
 
             // Fetch unread counts
             const counts = await discipleshipService.getUnreadCounts(user.id);

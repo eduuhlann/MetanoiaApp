@@ -96,7 +96,22 @@ const PublicProfilePage: React.FC = () => {
         setStartingChat(true);
         try {
             await discipleshipService.getOrCreateConnection(user.id, userId);
-            navigate('/discipleship');
+            sessionStorage.setItem('pendingChat', JSON.stringify({
+                id: userId,
+                username: profile?.username || null,
+                display_name: profile?.display_name || null,
+                avatar_url: profile?.avatar_url || null,
+            }));
+            navigate('/discipleship', {
+                state: {
+                    openChatWith: {
+                        id: userId,
+                        username: profile?.username || null,
+                        display_name: profile?.display_name || null,
+                        avatar_url: profile?.avatar_url || null,
+                    },
+                },
+            });
         } catch (err) {
             console.error('Error starting chat:', err);
         } finally {
